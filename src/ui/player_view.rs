@@ -343,10 +343,30 @@ impl App {
             let dur = self.player.duration();
             let seek = Rect::from_min_size(Pos2::new(full.min.x + 24.0, full.max.y - 88.0), vec2(full.width() - 48.0, 16.0));
             if live {
-                let c = Rect::from_min_size(seek.left_center() - vec2(0.0, 11.0), vec2(58.0, 22.0));
-                ui.painter().rect_filled(c, CornerRadius::same(6), LIVE.gamma_multiply(t));
-                ui.painter().text(c.center(), Align2::CENTER_CENTER, "● LIVE", FontId::proportional(12.0), Color32::WHITE.gamma_multiply(t));
-                ui.painter().text(c.right_center() + vec2(12.0, 0.0), Align2::LEFT_CENTER, format!("watching for {}", fmt_time(pos)), FontId::proportional(13.0), muted().gamma_multiply(t));
+                // red "LIVE" while in step with the broadcast, grey "N s behind" once playback has fallen back
+                let behind = self.player.live_behind();
+                let late = behind >= 4.0;
+                let label = if late { {
+                    let b = behind.round() as u64;
+                    if b < 60 { format!("● {b}s behind") } else { format!("● {}m {:02}s behind", b / 60, b % 60) }
+                } } else { "● LIVE".to_string() };
+                let bw = if late { 116.0 } else { 58.0 };
+                let c = Rect::from_min_size(seek.left_center() - vec2(0.0, 11.0), vec2(bw, 22.0));
+                let fill = if late { ov(60) } else { LIVE };
+                ui.painter().rect_filled(c, CornerRadius::same(6), fill.gamma_multiply(t));
+                ui.painter().text(c.center(), Align2::CENTER_CENTER, label, FontId::proportional(12.0), Color32::WHITE.gamma_multiply(t));
+                let mut x = c.right() + 10.0;
+                if late {
+                    let b = Rect::from_min_size(Pos2::new(x, c.min.y), vec2(76.0, 22.0));
+                    let r = ui.interact(b, uid("golive"), Sense::click()).on_hover_cursor(egui::CursorIcon::PointingHand).on_hover_text("Jump to the live broadcast");
+                    ui.painter().rect_filled(b, CornerRadius::same(11), if r.hovered() { accent2() } else { accent() }.gamma_multiply(t));
+                    ui.painter().text(b.center(), Align2::CENTER_CENTER, "Go live", FontId::proportional(12.5), ON_ACCENT.gamma_multiply(t));
+                    if r.clicked() {
+                        self.player.go_live();
+                    }
+                    x = b.right() + 12.0;
+                }
+                ui.painter().text(Pos2::new(x, c.center().y), Align2::LEFT_CENTER, format!("watching for {}", fmt_time(pos)), FontId::proportional(13.0), muted().gamma_multiply(t));
             } else {
                 let id = uid("seek");
                 let sr = ui

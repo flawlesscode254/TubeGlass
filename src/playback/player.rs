@@ -170,6 +170,9 @@ pub struct Player {
     pub ambient_on: bool,
     ambient: Vec<[u8; 3]>,
     amb_n: u32,
+    /// Seconds of a live stream spent paused or buffering since it was opened: how far playback
+    /// has fallen behind the broadcast.
+    live_behind: f64,
 }
 
 impl Player {
@@ -215,12 +218,26 @@ impl Player {
             ambient_on: false,
             ambient: vec![],
             amb_n: 0,
+            live_behind: 0.0,
         }
     }
 
     /// Current state (playing, buffering, paused...).
     pub fn state(&self) -> State {
         self.state.clone()
+    }
+
+    /// How many seconds playback has fallen behind the live edge since the stream was opened
+    /// (0 right after opening or jumping to live).
+    pub fn live_behind(&self) -> f64 {
+        self.live_behind
+    }
+
+    /// Jumps to the live edge by opening the stream again.
+    pub fn go_live(&mut self) {
+        if let Some(s) = self.streams.clone() {
+            self.load(s, 0.0);
+        }
     }
 
     /// True for live streams.
@@ -478,6 +495,7 @@ impl Player {
         self.pending = None;
         self.shown = None;
         self.wall = 0.0;
+        self.live_behind = 0.0;
         self.state = State::Loading;
 
         let (Some(opt), Some(streams)) = (self.pick(), self.streams.clone()) else {
@@ -513,6 +531,10 @@ impl Player {
         let Some(sess) = self.session.as_mut() else { return };
         if matches!(self.state, State::Error(_)) {
             return;
+        }
+        // a live stream goes on while playback waits: every second paused or buffering is a second behind
+        if self.streams.as_ref().is_some_and(|s| s.is_live) && matches!(self.state, State::Paused | State::Buffering) {
+            self.live_behind += dt.min(1.0);
         }
 
         let has_audio = self._stream.is_some();
@@ -764,6 +786,10 @@ fn spawn(
         }
         cmd.args(["-i", url]);
     };
+    if streams.is_live && opt.hls && !crate::platform::is_local_path(&opt.url) {
+        // start at the second-to-last segment instead of the third-to-last: closer to real time
+        cmd.args(["-live_start_index", "-2"]);
+    }
     input(&mut cmd, &vurl, &vua, seekable);
     // Picture and sound in different files: decode them in two processes so both inputs
     // open and seek at the same time (about 0.2–0.6s faster per seek than one after another).

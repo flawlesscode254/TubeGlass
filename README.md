@@ -57,6 +57,7 @@ YouTube's public pages and internal endpoints, so there is no API key to registe
 - **A feed that is already there** — everything is cached on disk, so the app opens with content;
   *Refresh* fetches what is new. New videos get a **NEW** badge. Live streams and upcoming
   premieres are marked.
+- **Live status** — a live stream shows a red *LIVE* badge while you are in step with the broadcast; pause or buffer and it turns into *“12s behind”* with a **Go live** button that jumps back to the live edge.
 - **Groups** — put channels into named groups (Music, News …), each with its own feed.
 - **Search** — videos, channels and playlists, with suggestions, recent searches and sort / date /
   length filters. Paste a video or playlist link and it opens directly.
