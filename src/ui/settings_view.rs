@@ -6,7 +6,7 @@ impl App {
     /// Draws the Settings page.
     pub(crate) fn settings_view(&mut self, ui: &mut egui::Ui) {
         ui.add_space(8.0);
-        ui.label(egui::RichText::new("Settings").size(26.0).strong());
+        ui.label(egui::RichText::new(tr("Settings")).size(26.0).strong());
         ui.add_space(8.0);
         let mut changed = false;
         let mut pick_dir = false;
@@ -26,7 +26,7 @@ impl App {
         }
         egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
             let section = |ui: &mut egui::Ui, title: &str, f: &mut dyn FnMut(&mut egui::Ui)| {
-                ui.label(egui::RichText::new(title).size(12.0).color(muted()).strong());
+                ui.label(egui::RichText::new(tr(title)).size(12.0).color(muted()).strong());
                 egui::Frame::new()
                     .fill(card())
                     .corner_radius(CornerRadius::same(16))
@@ -39,9 +39,9 @@ impl App {
             };
             let row = |ui: &mut egui::Ui, label: &str, hint: &str, add: &mut dyn FnMut(&mut egui::Ui)| {
                 let texts = |ui: &mut egui::Ui| {
-                    ui.label(egui::RichText::new(label).size(15.0));
+                    ui.label(egui::RichText::new(tr(label)).size(15.0));
                     if !hint.is_empty() {
-                        ui.label(egui::RichText::new(hint).size(12.0).color(muted()));
+                        ui.label(egui::RichText::new(tr(hint)).size(12.0).color(muted()));
                     }
                 };
                 if ui.available_width() >= 640.0 {
@@ -89,7 +89,7 @@ impl App {
                 row(ui, "Crossfade", "Blend the end of a song into the next (needs gapless)", &mut |ui| {
                     for (label, secs) in [("6 s", 6u32), ("3 s", 3), ("Off", 0)] {
                         let on = self.settings.crossfade == secs;
-                        let b = egui::Button::new(egui::RichText::new(label).color(if on { ON_ACCENT } else { ink() }))
+                        let b = egui::Button::new(egui::RichText::new(tr(label)).color(if on { ON_ACCENT } else { ink() }))
                             .fill(if on { accent() } else { card_hi() });
                         if ui.add(b).clicked() {
                             self.settings.crossfade = secs;
@@ -108,7 +108,7 @@ impl App {
                 row(ui, "Equalizer", "Presets or your own bass / mid / treble", &mut |ui| {
                     for (label, b, m, t) in [("Vocal", -2.0f32, 3.0, 1.0), ("Treble", -1.0, 0.0, 5.0), ("Bass", 6.0, 0.0, -1.0), ("Flat", 0.0, 0.0, 0.0)] {
                         let on = (self.settings.eq_bass, self.settings.eq_mid, self.settings.eq_treble) == (b, m, t);
-                        let btn = egui::Button::new(egui::RichText::new(label).color(if on { ON_ACCENT } else { ink() }))
+                        let btn = egui::Button::new(egui::RichText::new(tr(label)).color(if on { ON_ACCENT } else { ink() }))
                             .fill(if on { accent() } else { card_hi() });
                         if ui.add(btn).clicked() {
                             self.settings.eq_bass = b;
@@ -168,7 +168,7 @@ impl App {
                             ui.label(egui::RichText::new(hint).size(12.0).color(muted()));
                         });
                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                            let b = egui::Button::new(egui::RichText::new(if sure { "Confirm" } else { "Delete…" }).color(if sure { Color32::WHITE } else { ink() }))
+                            let b = egui::Button::new(egui::RichText::new(tr(if sure { "Confirm" } else { "Delete…" })).color(if sure { Color32::WHITE } else { ink() }))
                                 .fill(if sure { LIVE } else { card_hi() });
                             if ui.add(b).clicked() {
                                 go = sure;
@@ -207,10 +207,10 @@ impl App {
             });
             section(ui, "DOWNLOADS", &mut |ui| {
                 row(ui, "Folder", &download::dir().display().to_string(), &mut |ui| {
-                    if ui.button("Choose…").clicked() {
+                    if ui.button(tr("Choose…")).clicked() {
                         pick_dir = true;
                     }
-                    if !self.settings.download_dir.is_empty() && ui.button("Reset").clicked() {
+                    if !self.settings.download_dir.is_empty() && ui.button(tr("Reset")).clicked() {
                         self.settings.download_dir.clear();
                         apply_settings(&self.settings);
                         self.library = download::list();
@@ -219,10 +219,33 @@ impl App {
                 });
             });
             section(ui, "APPEARANCE", &mut |ui| {
+                row(ui, "Interface language", "Choose the language used for TubeGlass controls", &mut |ui| {
+                    let options = language_options();
+                    let selected = if self.settings.language == "system" {
+                        tr("Use system language")
+                    } else {
+                        options.iter().find(|(code, _)| code == &self.settings.language)
+                            .map(|(_, name)| name.clone()).unwrap_or_else(|| self.settings.language.clone())
+                    };
+                    egui::ComboBox::from_id_salt("ui-language")
+                        .selected_text(selected)
+                        .show_ui(ui, |ui| {
+                            if ui.selectable_value(&mut self.settings.language, "system".to_owned(), tr("Use system language")).changed() {
+                                i18n::set_language(&self.settings.language);
+                                changed = true;
+                            }
+                            for (code, label) in options {
+                                if ui.selectable_value(&mut self.settings.language, code, label).changed() {
+                                    i18n::set_language(&self.settings.language);
+                                    changed = true;
+                                }
+                            }
+                        });
+                });
                 row(ui, "Theme", "Dark, light, or follow the system (the video page stays dark)", &mut |ui| {
                     for (label, v) in [("System", 2u8), ("Light", 1), ("Dark", 0)] {
                         let on = self.settings.theme == v;
-                        let b = egui::Button::new(egui::RichText::new(label).color(if on { ON_ACCENT } else { ink() }))
+                        let b = egui::Button::new(egui::RichText::new(tr(label)).color(if on { ON_ACCENT } else { ink() }))
                             .fill(if on { accent() } else { card_hi() });
                         if ui.add(b).clicked() {
                             self.settings.theme = v;
@@ -233,7 +256,7 @@ impl App {
                 row(ui, "Text size", "Scales the whole interface", &mut |ui| {
                     for (label, v) in [("130%", 1.3f32), ("115%", 1.15), ("100%", 1.0), ("90%", 0.9)] {
                         let on = (self.settings.font_scale - v).abs() < 0.01;
-                        let b = egui::Button::new(egui::RichText::new(label).color(if on { ON_ACCENT } else { ink() }))
+                        let b = egui::Button::new(egui::RichText::new(tr(label)).color(if on { ON_ACCENT } else { ink() }))
                             .fill(if on { accent() } else { card_hi() });
                         if ui.add(b).clicked() {
                             self.settings.font_scale = v;
@@ -244,7 +267,7 @@ impl App {
                 row(ui, "Density", "How big and how far apart video cards are", &mut |ui| {
                     for (label, v) in [("Spacious", 2u8), ("Comfortable", 1), ("Compact", 0)] {
                         let on = self.settings.density == v;
-                        let b = egui::Button::new(egui::RichText::new(label).color(if on { ON_ACCENT } else { ink() }))
+                        let b = egui::Button::new(egui::RichText::new(tr(label)).color(if on { ON_ACCENT } else { ink() }))
                             .fill(if on { accent() } else { card_hi() });
                         if ui.add(b).clicked() {
                             self.settings.density = v;
@@ -264,7 +287,7 @@ impl App {
                             changed = true;
                         }
                         if on {
-                            ui.label(egui::RichText::new("custom").size(12.0).color(muted()));
+                            ui.label(egui::RichText::new(tr("custom")).size(12.0).color(muted()));
                         }
                     });
                     for (i, (name, c, _)) in ACCENTS.iter().enumerate().rev() {
@@ -284,12 +307,12 @@ impl App {
             });
             section(ui, "SUBSCRIPTIONS", &mut |ui| {
                 row(ui, "Import", "NewPipe export, YouTube Takeout CSV, OPML, or a list of links", &mut |ui| {
-                    if ui.button("Import…").clicked() {
+                    if ui.button(tr("Import…")).clicked() {
                         import_subs = true;
                     }
                 });
                 row(ui, "Export", "Saves a NewPipe-compatible subscriptions file", &mut |ui| {
-                    if ui.button("Export…").clicked() {
+                    if ui.button(tr("Export…")).clicked() {
                         export_subs = true;
                     }
                 });
@@ -301,12 +324,12 @@ impl App {
             });
             section(ui, "DATA", &mut |ui| {
                 row(ui, "Back up everything", "Channels, playlists, history, liked songs, groups and settings in one file", &mut |ui| {
-                    if ui.button("Back up…").clicked() {
+                    if ui.button(tr("Back up…")).clicked() {
                         backup = true;
                     }
                 });
                 row(ui, "Restore a backup", "Replaces what is here with the file's contents, then restarts", &mut |ui| {
-                    if ui.button("Restore…").clicked() {
+                    if ui.button(tr("Restore…")).clicked() {
                         restore = true;
                     }
                 });
@@ -317,17 +340,17 @@ impl App {
                 row(ui, "Check for updates now", &note, &mut |ui| {
                     if self.update_checking {
                         ui.add(egui::Spinner::new().size(16.0).color(accent()));
-                    } else if ui.button("Check now").clicked() {
+                    } else if ui.button(tr("Check now")).clicked() {
                         check_update = true;
                     }
                 });
                 let ff = crate::platform::ffmpeg_in_use();
                 let ffm = &mut self.ffmpeg;
                 let mut redo = false;
-                row(ui, "ffmpeg", &format!("Everything plays through it. In use: {ff}"), &mut |ui| {
+                row(ui, "ffmpeg", &trf("Everything plays through it. In use: {ffmpeg}", &[("ffmpeg", &ff)]), &mut |ui| {
                     if matches!(ffm, FfmpegState::Downloading(_)) {
                         ui.add(egui::Spinner::new().size(16.0).color(accent()));
-                    } else if ui.button("Download a fresh copy").clicked() {
+                    } else if ui.button(tr("Download a fresh copy")).clicked() {
                         redo = true;
                     }
                 });
@@ -337,7 +360,7 @@ impl App {
                 row(ui, "Check YouTube access", "Tests search, playback, comments and music, to see what broke if something stops working", &mut |ui| {
                     if self.diag_running {
                         ui.add(egui::Spinner::new().size(16.0).color(accent()));
-                    } else if ui.button("Run check").clicked() {
+                    } else if ui.button(tr("Run check")).clicked() {
                         diagnose = true;
                     }
                 });
@@ -351,12 +374,12 @@ impl App {
                     ui.add_space(6.0);
                 }
                 row(ui, "Clear image cache", "Thumbnails and avatars are downloaded again when needed", &mut |ui| {
-                    if ui.button("Clear").clicked() {
+                    if ui.button(tr("Clear")).clicked() {
                         clear_cache = true;
                     }
                 });
                 row(ui, "Clear watch history", "Also forgets where you left each video", &mut |ui| {
-                    if ui.button("Clear").clicked() {
+                    if ui.button(tr("Clear")).clicked() {
                         clear_history = true;
                     }
                 });
@@ -368,7 +391,9 @@ impl App {
         if pick_dir {
             let (tx, ctx) = (self.tx.clone(), self.ctx.clone());
             std::thread::spawn(move || {
-                let p = rfd::FileDialog::new().set_title("Download folder").pick_folder();
+                let p = rfd::FileDialog::new()
+                    .set_title("Download folder")
+                    .pick_folder();
                 let _ = tx.send(Msg::DirPicked(p.map(|p| p.display().to_string())));
                 ctx.request_repaint();
             });
@@ -429,7 +454,13 @@ impl App {
         if restore {
             let (tx, ctx) = (self.tx.clone(), self.ctx.clone());
             std::thread::spawn(move || {
-                let Some(p) = rfd::FileDialog::new().set_title("Restore a backup").add_filter("JSON", &["json"]).pick_file() else { return };
+                let Some(p) = rfd::FileDialog::new()
+                    .set_title("Restore a backup")
+                    .add_filter("JSON", &["json"])
+                    .pick_file()
+                else {
+                    return;
+                };
                 let text = std::fs::read_to_string(&p).unwrap_or_default();
                 let sure = rfd::MessageDialog::new()
                     .set_title("Restore backup")
@@ -456,7 +487,9 @@ impl App {
             let finished: HashSet<String> = self
                 .history
                 .iter()
-                .filter(|h| h.duration > 0.0 && (h.position == 0.0 || h.position >= h.duration - 10.0))
+                .filter(|h| {
+                    h.duration > 0.0 && (h.position == 0.0 || h.position >= h.duration - 10.0)
+                })
                 .map(|h| h.video.id.clone())
                 .collect();
             let mut n = 0;
@@ -476,7 +509,11 @@ impl App {
                 }
             }
             self.library = download::list();
-            self.toast(format!("Removed {n} download{}, freed {}", if n == 1 { "" } else { "s" }, fmt_size(bytes)));
+            self.toast(format!(
+                "Removed {n} download{}, freed {}",
+                if n == 1 { "" } else { "s" },
+                fmt_size(bytes)
+            ));
             self.refresh_storage();
         }
         if check_update {

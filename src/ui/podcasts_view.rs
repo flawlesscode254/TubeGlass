@@ -8,19 +8,19 @@ use crate::podcasts::Saved;
 pub(crate) fn ep_menu(resp: &egui::Response, saved: bool, prog: Option<f32>, is_new: bool) -> Option<EpAct> {
     let mut act = None;
     resp.context_menu(|ui| {
-        if ui.button("Play next").clicked() {
+        if ui.button(tr("Play next")).clicked() {
             act = Some(EpAct::Next);
             ui.close();
         }
-        if ui.button("Add to queue").clicked() {
+        if ui.button(tr("Add to queue")).clicked() {
             act = Some(EpAct::Queue);
             ui.close();
         }
-        if !saved && prog.is_none() && ui.button("Download").clicked() {
+        if !saved && prog.is_none() && ui.button(tr("Download")).clicked() {
             act = Some(EpAct::Download);
             ui.close();
         }
-        if is_new && ui.button("Mark as played").clicked() {
+        if is_new && ui.button(tr("Mark as played")).clicked() {
             act = Some(EpAct::Seen);
             ui.close();
         }

@@ -32,6 +32,7 @@ YouTube's public pages and internal endpoints, so there is no API key to registe
 - [Keyboard shortcuts](#keyboard-shortcuts)
 - [Where your data lives](#where-your-data-lives)
 - [Building from source](#building-from-source)
+- [Translations](#translations)
 - [Troubleshooting](#troubleshooting)
 - [How it works](#how-it-works)
 - [Contributing](#contributing) · [Releasing](#releasing) · [License](#license)
@@ -220,6 +221,22 @@ above any list switch between grid, compact grid and list.
 | `N` / `P` | Next / previous in queue | `F` | Fullscreen |
 | `Esc` | Back (keeps playing in PiP) | `Ctrl+O` | Open a file |
 | `Ctrl+B` | Collapse the sidebar | `?` | Show this list |
+
+## Translations
+
+The UI language is selected in **Settings → Appearance → Interface language**. **Use system
+language** detects the operating system locale and falls back to English when TubeGlass has no
+matching catalog. This setting only changes TubeGlass controls; it does not affect caption language
+or caption translation.
+
+Catalogs live in `locales/<language-code>.json`. The build discovers every JSON catalog in that
+directory, so adding a language does not require Rust changes. Copy `locales/en.json`, translate its
+values, keep the keys unchanged, and add a `__language_name` value for the selector. Use UTF-8 and
+preserve every `{placeholder}` exactly. Missing keys use their English value at runtime.
+
+Run `cargo test` before submitting a catalog. The localization tests check every catalog against
+English for missing keys and mismatched placeholders. Keep translator notes in the pull request,
+not in catalog values.
 
 ## Where your data lives
 

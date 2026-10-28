@@ -109,16 +109,16 @@ pub(crate) fn video_card(ui: &mut egui::Ui, rect: Rect, th: f32, v: &Video, info
     let resp = resp.on_hover_cursor(egui::CursorIcon::PointingHand);
     let mut act: Option<CardAction> = None;
     resp.context_menu(|ui| {
-        if ui.button("Play audio only").clicked() {
+        if ui.button(tr("Play audio only")).clicked() {
             act = Some(CardAction::PlayAudio);
             ui.close();
         }
         if v.kind != Kind::Live {
-            if ui.button("Play next").clicked() {
+            if ui.button(tr("Play next")).clicked() {
                 act = Some(CardAction::PlayNext);
                 ui.close();
             }
-            if ui.button("Add to queue").clicked() {
+            if ui.button(tr("Add to queue")).clicked() {
                 act = Some(CardAction::AddToQueue);
                 ui.close();
             }
@@ -138,7 +138,7 @@ pub(crate) fn video_card(ui: &mut egui::Ui, rect: Rect, th: f32, v: &Video, info
             }
             if info.audio_saved {
                 ui.add_enabled(false, egui::Button::new("Audio downloaded"));
-            } else if ui.button("Download audio only").clicked() {
+            } else if ui.button(tr("Download audio only")).clicked() {
                 act = Some(CardAction::Download(true, 0));
                 ui.close();
             }
@@ -160,27 +160,27 @@ pub(crate) fn video_card(ui: &mut egui::Ui, rect: Rect, th: f32, v: &Video, info
                 }
             }
             ui.separator();
-            if ui.button("+  New playlist…").clicked() {
+            if ui.button(tr("+  New playlist…")).clicked() {
                 act = Some(CardAction::NewList);
                 ui.close();
             }
         });
         if matches!(v.kind, Kind::Video) && !info.in_history_view {
             ui.separator();
-            if ui.button("Not interested").clicked() {
+            if ui.button(tr("Not interested")).clicked() {
                 act = Some(CardAction::NotInterested);
                 ui.close();
             }
-            if !v.channel_id.is_empty() && ui.button("Recommend less from this channel").clicked() {
+            if !v.channel_id.is_empty() && ui.button(tr("Recommend less from this channel")).clicked() {
                 act = Some(CardAction::FewerFromChannel);
                 ui.close();
             }
         }
-        if info.in_history_view && ui.button("Remove from history").clicked() {
+        if info.in_history_view && ui.button(tr("Remove from history")).clicked() {
             act = Some(CardAction::RemoveFromHistory);
             ui.close();
         }
-        if info.current_list.is_some() && ui.button("Remove from this playlist").clicked() {
+        if info.current_list.is_some() && ui.button(tr("Remove from this playlist")).clicked() {
             act = Some(CardAction::RemoveFromList);
             ui.close();
         }

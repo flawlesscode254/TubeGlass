@@ -321,7 +321,7 @@ impl App {
             ui.add_space(16.0);
             ui.label(egui::RichText::new("This doesn't look like a song, so lyrics are not looked up automatically.").size(14.0).color(muted()));
             ui.add_space(8.0);
-            if ui.button("Look up lyrics anyway").clicked() {
+            if ui.button(tr("Look up lyrics anyway")).clicked() {
                 self.lyrics_forced = w.id.clone();
             }
             return;
@@ -704,11 +704,11 @@ fn song_rows(
             }
         }
         resp.context_menu(|ui| {
-            if ui.button("Play next").clicked() {
+            if ui.button(tr("Play next")).clicked() {
                 *act = Some((v.clone(), MAct::PlayNext));
                 ui.close();
             }
-            if ui.button("Add to queue").clicked() {
+            if ui.button(tr("Add to queue")).clicked() {
                 *act = Some((v.clone(), MAct::Queue));
                 ui.close();
             }

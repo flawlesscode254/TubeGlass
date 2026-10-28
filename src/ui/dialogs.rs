@@ -23,7 +23,7 @@ impl App {
                     if ui.add(egui::Button::new(egui::RichText::new("Create").strong()).fill(accent())).clicked() {
                         create = true;
                     }
-                    if ui.button("Cancel").clicked() {
+                    if ui.button(tr("Cancel")).clicked() {
                         cancel = true;
                     }
                 });
@@ -72,7 +72,7 @@ impl App {
                     if ui.add(egui::Button::new(egui::RichText::new("Create").strong()).fill(accent())).clicked() {
                         create = true;
                     }
-                    if ui.button("Cancel").clicked() {
+                    if ui.button(tr("Cancel")).clicked() {
                         cancel = true;
                     }
                 });

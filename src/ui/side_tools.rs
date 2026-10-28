@@ -460,7 +460,7 @@ impl App {
         }
         ui.add_space(10.0);
         ui.horizontal(|ui| {
-            if ui.button("Preview").clicked() {
+            if ui.button(tr("Preview")).clicked() {
                 self.player.seek(self.clip.start);
                 if self.player.paused {
                     self.player.toggle_pause();
@@ -550,10 +550,10 @@ impl App {
             ui.label(egui::RichText::new(format!("Saved {}", p.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default())).size(13.0).color(muted()));
             let mut play_here = false;
             ui.horizontal(|ui| {
-                if ui.button("Play").clicked() {
+                if ui.button(tr("Play")).clicked() {
                     play_here = true;
                 }
-                if ui.button("Show folder").clicked() {
+                if ui.button(tr("Show folder")).clicked() {
                     crate::platform::open_path(&clip::dir());
                 }
             });
@@ -659,7 +659,7 @@ impl App {
             ui.label(egui::RichText::new("Clips").size(26.0).strong());
             ui.label(egui::RichText::new(clip::dir().display().to_string()).size(12.0).color(muted()));
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                if ui.button("Open folder").clicked() {
+                if ui.button(tr("Open folder")).clicked() {
                     let _ = std::fs::create_dir_all(clip::dir());
                     crate::platform::open_path(&clip::dir());
                 }
@@ -718,11 +718,11 @@ impl App {
                             icons::draw(ui.painter(), xr.center(), "close", 13.0, Color32::WHITE.gamma_multiply(hv));
                         }
                         resp.context_menu(|ui| {
-                            if !c.video.id.is_empty() && ui.button("Open the source video").clicked() {
+                            if !c.video.id.is_empty() && ui.button(tr("Open the source video")).clicked() {
                                 source = Some((c.video.clone(), c.start));
                                 ui.close();
                             }
-                            if ui.button("Delete clip").clicked() {
+                            if ui.button(tr("Delete clip")).clicked() {
                                 del = Some(c.file.clone());
                                 ui.close();
                             }

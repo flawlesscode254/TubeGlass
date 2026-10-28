@@ -726,7 +726,7 @@ impl App {
                     }
                     if is_pod {
                         ui.separator();
-                        if ui.button("Open the full transcript").clicked() {
+                        if ui.button(tr("Open the full transcript")).clicked() {
                             toggle_transcript = true;
                             ui.close();
                         }
@@ -763,7 +763,7 @@ impl App {
                             ui.close();
                         }
                     }
-                    if !self.player.is_live() && ui.button("Clip this moment…").clicked() {
+                    if !self.player.is_live() && ui.button(tr("Clip this moment…")).clicked() {
                         open_clip = true;
                         ui.close();
                     }
@@ -800,16 +800,16 @@ impl App {
                             ui.close();
                         }
                     }
-                    if ui.button("End of this video").clicked() {
+                    if ui.button(tr("End of this video")).clicked() {
                         set_sleep = Some(Some(SleepMode::EndOfVideo));
                         ui.close();
                     }
-                    if self.sleep.is_some() && ui.button("Turn off").clicked() {
+                    if self.sleep.is_some() && ui.button(tr("Turn off")).clicked() {
                         set_sleep = Some(None);
                         ui.close();
                     }
                     ui.separator();
-                    if ui.button("Keyboard shortcuts").clicked() {
+                    if ui.button(tr("Keyboard shortcuts")).clicked() {
                         show_help = true;
                         ui.close();
                     }
@@ -894,7 +894,7 @@ impl App {
                         ui.separator();
                         if da {
                             ui.add_enabled(false, egui::Button::new("Audio downloaded"));
-                        } else if ui.button("Audio only  (m4a)").clicked() {
+                        } else if ui.button(tr("Audio only  (m4a)")).clicked() {
                             start_dl = Some((w.clone(), true, 0));
                             ui.close();
                         }
@@ -923,7 +923,7 @@ impl App {
                         }
                     }
                     ui.separator();
-                    if ui.button("+  New playlist…").clicked() {
+                    if ui.button(tr("+  New playlist…")).clicked() {
                         new_list_for = Some(w.clone());
                         ui.close();
                     }
