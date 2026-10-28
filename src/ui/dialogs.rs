@@ -7,20 +7,20 @@ impl App {
     pub(crate) fn new_group_dialog(&mut self, ctx: &egui::Context) {
         let Some((name, _)) = self.new_group.as_mut() else { return };
         let (mut create, mut cancel) = (false, false);
-        egui::Window::new("New group")
+        egui::Window::new(tr("New group"))
             .collapsible(false)
             .resizable(false)
             .anchor(Align2::CENTER_CENTER, vec2(0.0, 0.0))
             .show(ctx, |ui| {
                 ui.set_width(300.0);
-                let f = text_field(ui, name, "Group name, e.g. Music", 300.0, 42.0, "folder", None, false);
+                let f = text_field(ui, name, &tr("Group name, e.g. Music"), 300.0, 42.0, "folder", None, false);
                 f.resp.request_focus();
                 if f.submit {
                     create = true;
                 }
                 ui.add_space(6.0);
                 ui.horizontal(|ui| {
-                    if ui.add(egui::Button::new(egui::RichText::new("Create").strong()).fill(accent())).clicked() {
+                    if ui.add(egui::Button::new(egui::RichText::new(tr("Create")).strong()).fill(accent())).clicked() {
                         create = true;
                     }
                     if ui.button(tr("Cancel")).clicked() {
@@ -53,23 +53,23 @@ impl App {
         let Some((name, pending)) = self.new_list.as_mut() else { return };
         let mut create = false;
         let mut cancel = false;
-        egui::Window::new("New playlist")
+        egui::Window::new(tr("New playlist"))
             .collapsible(false)
             .resizable(false)
             .anchor(Align2::CENTER_CENTER, vec2(0.0, 0.0))
             .show(ctx, |ui| {
                 ui.set_width(300.0);
-                let f = text_field(ui, name, "Playlist name", 300.0, 42.0, "list", None, false);
+                let f = text_field(ui, name, &tr("Playlist name"), 300.0, 42.0, "list", None, false);
                 f.resp.request_focus();
                 if f.submit {
                     create = true;
                 }
                 if let Some(v) = pending.as_ref() {
-                    ui.label(egui::RichText::new(format!("“{}” will be added to it.", v.title)).size(12.0).color(muted()));
+                    ui.label(egui::RichText::new(trf("“{title}” will be added to it.", &[("title", &v.title)])).size(12.0).color(muted()));
                 }
                 ui.add_space(6.0);
                 ui.horizontal(|ui| {
-                    if ui.add(egui::Button::new(egui::RichText::new("Create").strong()).fill(accent())).clicked() {
+                    if ui.add(egui::Button::new(egui::RichText::new(tr("Create")).strong()).fill(accent())).clicked() {
                         create = true;
                     }
                     if ui.button(tr("Cancel")).clicked() {
@@ -126,7 +126,7 @@ impl App {
         }
         if self.show_help {
             let mut open = true;
-            egui::Window::new("Keyboard shortcuts")
+            egui::Window::new(tr("Keyboard shortcuts"))
                 .open(&mut open)
                 .collapsible(false)
                 .resizable(false)
@@ -134,24 +134,24 @@ impl App {
                 .show(ctx, |ui| {
                     ui.set_width(430.0);
                     let rows = [
-                        ("Space / K", "Play or pause"),
-                        ("← →", "Seek 5 seconds"),
-                        ("J / L", "Seek 10 seconds"),
-                        ("↑ ↓", "Volume"),
-                        ("M", "Mute"),
-                        ("[  /  ]", "Slower / faster"),
-                        ("N / P", "Next / previous in queue"),
-                        ("A", "Audio only on or off"),
-                        ("I", "Mini player on or off"),
-                        ("B", "Ambient mode on or off"),
-                        ("W", "Watch later on or off"),
-                        ("C", "Comments"),
-                        ("Y", "Lyrics (music)"),
-                        ("F", "Fullscreen"),
-                        ("Esc", "Back (keeps playing in PiP)"),
-                        ("Ctrl+O", "Open a file"),
-                        ("Ctrl+B", "Collapse the sidebar"),
-                        ("?", "This sheet"),
+                        ("Space / K", tr("Play or pause")),
+                        ("← →", tr("Seek 5 seconds")),
+                        ("J / L", tr("Seek 10 seconds")),
+                        ("↑ ↓", tr("Volume")),
+                        ("M", tr("Mute")),
+                        ("[  /  ]", tr("Slower / faster")),
+                        ("N / P", tr("Next / previous in queue")),
+                        ("A", tr("Audio only on or off")),
+                        ("I", tr("Mini player on or off")),
+                        ("B", tr("Ambient mode on or off")),
+                        ("W", tr("Watch later on or off")),
+                        ("C", tr("Comments")),
+                        ("Y", tr("Lyrics (music)")),
+                        ("F", tr("Fullscreen")),
+                        ("Esc", tr("Back (keeps playing in PiP)")),
+                        ("Ctrl+O", tr("Open a file")),
+                        ("Ctrl+B", tr("Collapse the sidebar")),
+                        ("?", tr("This sheet")),
                     ];
                     for (k, d) in rows {
                         ui.horizontal(|ui| {
@@ -175,13 +175,13 @@ impl App {
         let mut cancel = false;
         let ids = playlist_ids(text);
         let busy = *loading > 0;
-        egui::Window::new("Import playlists from YouTube")
+        egui::Window::new(tr("Import playlists from YouTube"))
             .collapsible(false)
             .resizable(false)
             .anchor(Align2::CENTER_CENTER, vec2(0.0, 0.0))
             .show(ctx, |ui| {
                 ui.set_width(420.0);
-                ui.label(egui::RichText::new("Paste one or more playlist links (or ids). Each becomes a playlist you can edit, download and keep offline.").size(12.5).color(muted()));
+                ui.label(egui::RichText::new(tr("Paste one or more playlist links (or ids). Each becomes a playlist you can edit, download and keep offline.")).size(12.5).color(muted()));
                 ui.add_space(6.0);
                 let f = text_field(ui, text, "https://www.youtube.com/playlist?list=…", 420.0, 42.0, "list", None, false);
                 if !busy {
@@ -192,22 +192,23 @@ impl App {
                 }
                 ui.add_space(4.0);
                 let note = if busy {
-                    format!("Importing… {loading} left")
+                    trf("Importing… {count} left", &[("count", &loading.to_string())])
                 } else if text.trim().is_empty() {
                     String::new()
                 } else if ids.is_empty() {
-                    "No playlist link found yet. Private playlists cannot be imported.".to_string()
+                    tr("No playlist link found yet. Private playlists cannot be imported.")
                 } else {
-                    format!("{} playlist{} found", ids.len(), if ids.len() == 1 { "" } else { "s" })
+                    let count = ids.len().to_string();
+                    if ids.len() == 1 { trf("{count} playlist found", &[("count", &count)]) } else { trf("{count} playlists found", &[("count", &count)]) }
                 };
                 ui.label(egui::RichText::new(note).size(12.0).color(muted()));
                 ui.add_space(6.0);
                 ui.horizontal(|ui| {
-                    let b = egui::Button::new(egui::RichText::new("Import").strong()).fill(accent());
+                    let b = egui::Button::new(egui::RichText::new(tr("Import")).strong()).fill(accent());
                     if ui.add_enabled(!ids.is_empty() && !busy, b).clicked() {
                         go = true;
                     }
-                    if ui.button(if busy { "Close" } else { "Cancel" }).clicked() {
+                    if ui.button(tr(if busy { "Close" } else { "Cancel" })).clicked() {
                         cancel = true;
                     }
                 });

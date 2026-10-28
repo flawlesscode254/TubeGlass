@@ -88,6 +88,7 @@ pub(crate) fn language_options() -> Vec<(String, String)> {
         .map(|(code, catalog)| {
             let name = catalog
                 .get("__language_name")
+                .filter(|name| !name.trim().is_empty())
                 .cloned()
                 .unwrap_or_else(|| code.clone());
             (code.clone(), name)
@@ -103,10 +104,20 @@ pub(crate) fn tr(key: &str) -> String {
         .read()
         .map(|active| active.clone())
         .unwrap_or_else(|_| "en".to_owned());
-    catalogs()
-        .get(&language)
+    lookup(catalogs(), &language, key)
+}
+
+fn lookup(catalogs: &HashMap<String, HashMap<String, String>>, language: &str, key: &str) -> String {
+    catalogs
+        .get(language)
         .and_then(|catalog| catalog.get(key))
-        .or_else(|| catalogs().get("en").and_then(|catalog| catalog.get(key)))
+        .filter(|value| !value.trim().is_empty())
+        .or_else(|| {
+            catalogs
+                .get("en")
+                .and_then(|catalog| catalog.get(key))
+                .filter(|value| !value.trim().is_empty())
+        })
         .cloned()
         .unwrap_or_else(|| key.to_owned())
 }
@@ -143,26 +154,38 @@ mod tests {
     }
 
     #[test]
-    fn catalogs_have_no_missing_keys_or_invalid_placeholders() {
+    fn english_is_complete_and_locales_have_known_keys_and_valid_placeholders() {
         let english = catalogs().get("en").expect("English catalog is required");
+        let total = english.keys().filter(|key| key.as_str() != "__language_name").count();
+        assert!(english.iter().filter(|(key, _)| key.as_str() != "__language_name").all(|(_, value)| !value.trim().is_empty()), "English source values must be complete");
         for (language, catalog) in catalogs() {
-            for (key, source) in english.iter().filter(|(key, _)| !key.starts_with("__")) {
-                let translated = catalog
-                    .get(key)
-                    .unwrap_or_else(|| panic!("{language}.json is missing key {key:?}"));
+            let mut translated = 0;
+            for (key, value) in catalog {
+                if key == "__language_name" {
+                    continue;
+                }
+                let source = english.get(key).unwrap_or_else(|| panic!("{language}.json has unknown key {key:?}"));
+                if value.trim().is_empty() {
+                    continue;
+                }
+                translated += 1;
                 assert_eq!(
                     placeholders(source),
-                    placeholders(translated),
+                    placeholders(value),
                     "invalid placeholders in {language}.json for {key:?}"
                 );
             }
+            eprintln!("{language}: {translated}/{total} UI strings translated ({:.1}%)", translated as f64 * 100.0 / total as f64);
         }
     }
 
     #[test]
     fn unsupported_and_regional_languages_fall_back_safely() {
+        set_language("en");
+        assert_eq!(trf("{count} items", &[("count", "2")]), "2 items");
         set_language("id-ID");
         assert_eq!(tr("Settings"), "Pengaturan");
+        assert_eq!(trf("{count} items", &[("count", "2")]), "2 item");
         assert_eq!(
             trf(
                 "Everything plays through it. In use: {ffmpeg}",
@@ -172,5 +195,23 @@ mod tests {
         );
         set_language("xx-ZZ");
         assert_eq!(tr("Settings"), "Settings");
+        let uncatalogued = ["Uncatalogued", " text"].concat();
+        assert_eq!(tr(&uncatalogued), uncatalogued);
+    }
+
+    #[test]
+    fn partial_locales_fall_back_for_missing_and_blank_values() {
+        let catalogs = HashMap::from([
+            ("en".to_owned(), HashMap::from([
+                ("Settings".to_owned(), "Settings".to_owned()),
+                ("Downloads".to_owned(), "Downloads".to_owned()),
+            ])),
+            ("fr".to_owned(), HashMap::from([
+                ("Settings".to_owned(), "Paramètres".to_owned()),
+                ("Downloads".to_owned(), String::new()),
+            ])),
+        ]);
+        assert_eq!(lookup(&catalogs, "fr", "Settings"), "Paramètres");
+        assert_eq!(lookup(&catalogs, "fr", "Downloads"), "Downloads");
     }
 }

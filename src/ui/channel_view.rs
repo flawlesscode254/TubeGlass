@@ -34,29 +34,29 @@ impl App {
         // refresh / play all / "updated": next to the name on a wide window, under it on a narrow one
         let narrow_hdr = w < 920.0;
         let actions = |app: &mut App, ui: &mut egui::Ui| {
-            if icon_btn(ui, "refresh", "Refresh", None, ink(), false, true).clicked() {
+            if icon_btn(ui, "refresh", &tr("Refresh"), None, ink(), false, true).clicked() {
                 app.refresh(&ch);
                 app.ensure_tab(true);
             }
             if matches!(app.chan_tab, ChanTab::Videos | ChanTab::Live | ChanTab::Shorts) {
-                if icon_btn(ui, "play", "Play all", Some(accent()), ON_ACCENT, false, true).clicked() {
+                if icon_btn(ui, "play", &tr("Play all"), Some(accent()), ON_ACCENT, false, true).clicked() {
                     app.play_all_visible(false);
                 }
             }
             // the first press asks, the second one unsubscribes
             let sure = app.confirm_unsub;
-            let label = if sure { "Confirm unsubscribe" } else { "Unsubscribe" };
-            if icon_btn(ui, "", label, if sure { Some(LIVE) } else { None }, if sure { Color32::WHITE } else { ink() }, false, true).clicked() {
+            let label = tr(if sure { "Confirm unsubscribe" } else { "Unsubscribe" });
+            if icon_btn(ui, "", &label, if sure { Some(LIVE) } else { None }, if sure { Color32::WHITE } else { ink() }, false, true).clicked() {
                 if sure {
                     app.confirm_unsub = false;
                     app.remove_channel(&ch.id);
-                    app.toast(format!("Unsubscribed from {}", ch.name));
+                    app.toast(trf("Unsubscribed from {channel}", &[("channel", &ch.name)]));
                 } else {
                     app.confirm_unsub = true;
                 }
             }
             if let Some(ts) = app.fcache.updated.get(&ch.id) {
-                ui.label(egui::RichText::new(format!("updated {}", ago(*ts))).size(13.0).color(muted()));
+                ui.label(egui::RichText::new(trf("Updated {time}", &[("time", &ago(*ts))])).size(13.0).color(muted()));
             }
         };
         ui.horizontal(|ui| {
@@ -101,14 +101,14 @@ impl App {
         // tabs
         ui.horizontal_wrapped(|ui| {
             for (t, label) in [
-                (ChanTab::Videos, "Videos"),
-                (ChanTab::Live, "Live"),
-                (ChanTab::Shorts, "Shorts"),
-                (ChanTab::Playlists, "Playlists"),
-                (ChanTab::About, "About"),
+                (ChanTab::Videos, tr("Videos")),
+                (ChanTab::Live, tr("Live")),
+                (ChanTab::Shorts, tr("Shorts")),
+                (ChanTab::Playlists, tr("Playlists")),
+                (ChanTab::About, tr("About")),
             ] {
                 let on = self.chan_tab == t;
-                let g = ui.fonts_mut(|f| f.layout_no_wrap(label.to_string(), FontId::proportional(16.0), ink()));
+                let g = ui.fonts_mut(|f| f.layout_no_wrap(label.clone(), FontId::proportional(16.0), ink()));
                 let (r, resp) = ui.allocate_exact_size(vec2(g.size().x + 28.0, 36.0), Sense::click());
                 let resp = resp.on_hover_cursor(egui::CursorIcon::PointingHand);
                 let hv = ui.ctx().animate_bool_with_time(resp.id, resp.hovered(), 0.12);
@@ -126,7 +126,7 @@ impl App {
             if w >= 820.0 {
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     let width = 330.0_f32.min(ui.available_width());
-                    let hint = format!("Search in {}", ch.name);
+                    let hint = trf("Search in {channel}", &[("channel", &ch.name)]);
                     let f = text_field(ui, &mut self.chan_q, &hint, width, 40.0, "search", None, false);
                     if f.submit {
                         self.start_chan_search();
@@ -139,7 +139,7 @@ impl App {
         });
         if w < 820.0 {
             ui.add_space(6.0);
-            let hint = format!("Search in {}", ch.name);
+            let hint = trf("Search in {channel}", &[("channel", &ch.name)]);
             let f = text_field(ui, &mut self.chan_q, &hint, w, 40.0, "search", None, false);
             if f.submit {
                 self.start_chan_search();
@@ -167,11 +167,11 @@ impl App {
             ui.add_space(6.0);
             ui.horizontal(|ui| {
                 let msg = if loading {
-                    format!("Searching “{q}”…")
+                    trf("Searching “{query}”…", &[("query", &q)])
                 } else if let Some(e) = &failed {
-                    format!("Search failed: {e}")
+                    trf("Search failed: {error}", &[("error", e)])
                 } else {
-                    format!("Results for “{q}”  •  {n_v} videos, {n_p} playlists")
+                    trf("Results for “{query}”  •  {videos} videos, {playlists} playlists", &[("query", &q), ("videos", &n_v.to_string()), ("playlists", &n_p.to_string())])
                 };
                 ui.label(egui::RichText::new(msg).size(13.0).color(if failed.is_some() { LIVE } else { muted() }));
             });
@@ -201,20 +201,20 @@ impl App {
             };
             if !a.description.is_empty() {
                 card(ui, &mut |ui| {
-                    ui.label(egui::RichText::new("Description").size(13.0).color(muted()).strong());
+                    ui.label(egui::RichText::new(tr("Description")).size(13.0).color(muted()).strong());
                     ui.add_space(4.0);
                     ui.add(egui::Label::new(egui::RichText::new(&a.description).size(15.0)).wrap());
                 });
             }
             card(ui, &mut |ui| {
-                ui.label(egui::RichText::new("Stats").size(13.0).color(muted()).strong());
+                ui.label(egui::RichText::new(tr("Stats")).size(13.0).color(muted()).strong());
                 ui.add_space(4.0);
                 for (k, v) in [
-                    ("Subscribers", &a.subs),
-                    ("Videos", &a.videos),
-                    ("Views", &a.views),
-                    ("Joined", &a.joined),
-                    ("Country", &a.country),
+                    (tr("Subscribers"), &a.subs),
+                    (tr("Videos"), &a.videos),
+                    (tr("Views"), &a.views),
+                    (tr("Joined"), &a.joined),
+                    (tr("Country"), &a.country),
                 ] {
                     if !v.is_empty() {
                         ui.horizontal(|ui| {
@@ -226,7 +226,7 @@ impl App {
             });
             if !a.links.is_empty() {
                 card(ui, &mut |ui| {
-                    ui.label(egui::RichText::new("Links").size(13.0).color(muted()).strong());
+                    ui.label(egui::RichText::new(tr("Links")).size(13.0).color(muted()).strong());
                     ui.add_space(4.0);
                     for (title, url) in &a.links {
                         ui.horizontal(|ui| {

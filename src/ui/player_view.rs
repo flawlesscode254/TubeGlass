@@ -175,7 +175,7 @@ impl App {
                     }
                 }
             } else {
-                icon_label(ui, area.center_bottom() + vec2(0.0, 6.0), "note", "Audio", muted(), false);
+        icon_label(ui, area.center_bottom() + vec2(0.0, 6.0), "note", &tr("Audio"), muted(), false);
             }
             }
         }
@@ -218,16 +218,16 @@ impl App {
                 let sp = Rect::from_center_size(center - vec2(38.0, 0.0), vec2(24.0, 24.0));
                 ui.put(sp, egui::Spinner::new().size(24.0).color(accent()));
                 ui.painter().text(center + vec2(14.0, 0.0), Align2::LEFT_CENTER,
-                    if state == State::Buffering { "Buffering" } else { "Loading" },
+                    tr(if state == State::Buffering { "Buffering" } else { "Loading" }),
                     FontId::proportional(16.0), ink());
             }
             State::Error(e) => {
                 let r = Rect::from_center_size(center, vec2(460.0_f32.min(full.width() - 40.0), 150.0));
                 ui.painter().rect_filled(r, CornerRadius::same(16), Color32::from_black_alpha(200));
-                ui.painter().text(r.center_top() + vec2(0.0, 28.0), Align2::CENTER_CENTER, "Can't play this video", FontId::proportional(20.0), LIVE);
+                ui.painter().text(r.center_top() + vec2(0.0, 28.0), Align2::CENTER_CENTER, tr("Can't play this video"), FontId::proportional(20.0), LIVE);
                 let shown = if e.contains("opening input") || e.contains("Input/output error") {
                     let d = proxy::last_error();
-                    format!("YouTube did not hand over this video{}.", if d.is_empty() { String::new() } else { format!(" ({d})") })
+                    if d.is_empty() { tr("YouTube did not hand over this video.") } else { trf("YouTube did not hand over this video ({detail}).", &[("detail", &d)]) }
                 } else {
                     e.clone()
                 };
@@ -237,14 +237,14 @@ impl App {
                 let br = Rect::from_center_size(r.center() + vec2(0.0, 52.0), vec2(120.0, 32.0));
                 let bresp = ui.interact(br, uid("err-retry"), Sense::click()).on_hover_cursor(egui::CursorIcon::PointingHand);
                 ui.painter().rect_filled(br, CornerRadius::same(16), if bresp.hovered() { accent2() } else { accent() });
-                ui.painter().text(br.center(), Align2::CENTER_CENTER, "Try again", FontId::proportional(14.0), ON_ACCENT);
+                ui.painter().text(br.center(), Align2::CENTER_CENTER, tr("Try again"), FontId::proportional(14.0), ON_ACCENT);
                 if bresp.clicked() {
                     self.want_retry = true;
                 }
             }
             State::Ended => {
                 icons::draw(ui.painter(), center + vec2(-56.0, 0.0), "refresh", 30.0, ink());
-                ui.painter().text(center + vec2(-34.0, 0.0), Align2::LEFT_CENTER, "Replay", FontId::proportional(28.0), ink());
+                ui.painter().text(center + vec2(-34.0, 0.0), Align2::LEFT_CENTER, tr("Replay"), FontId::proportional(28.0), ink());
             }
             _ => {}
         }
@@ -343,13 +343,22 @@ impl App {
             let dur = self.player.duration();
             let seek = Rect::from_min_size(Pos2::new(full.min.x + 24.0, full.max.y - 88.0), vec2(full.width() - 48.0, 16.0));
             if live {
-                // red "LIVE" while in step with the broadcast, grey "N s behind" once playback has fallen back
+                // Show the broadcast state and let the viewer jump back to the live edge.
                 let behind = self.player.live_behind();
                 let late = behind >= 4.0;
-                let label = if late { {
+                let label = if late {
                     let b = behind.round() as u64;
-                    if b < 60 { format!("● {b}s behind") } else { format!("● {}m {:02}s behind", b / 60, b % 60) }
-                } } else { "● LIVE".to_string() };
+                    if b < 60 {
+                        trf("● {seconds}s behind", &[("seconds", &b.to_string())])
+                    } else {
+                        trf(
+                            "● {minutes}m {seconds}s behind",
+                            &[("minutes", &(b / 60).to_string()), ("seconds", &format!("{:02}", b % 60))],
+                        )
+                    }
+                } else {
+                    tr("● LIVE")
+                };
                 let bw = if late { 116.0 } else { 58.0 };
                 let c = Rect::from_min_size(seek.left_center() - vec2(0.0, 11.0), vec2(bw, 22.0));
                 let fill = if late { ov(60) } else { LIVE };
@@ -358,15 +367,23 @@ impl App {
                 let mut x = c.right() + 10.0;
                 if late {
                     let b = Rect::from_min_size(Pos2::new(x, c.min.y), vec2(76.0, 22.0));
-                    let r = ui.interact(b, uid("golive"), Sense::click()).on_hover_cursor(egui::CursorIcon::PointingHand).on_hover_text("Jump to the live broadcast");
+                    let r = ui.interact(b, uid("golive"), Sense::click())
+                        .on_hover_cursor(egui::CursorIcon::PointingHand)
+                        .on_hover_text(tr("Jump to the live broadcast"));
                     ui.painter().rect_filled(b, CornerRadius::same(11), if r.hovered() { accent2() } else { accent() }.gamma_multiply(t));
-                    ui.painter().text(b.center(), Align2::CENTER_CENTER, "Go live", FontId::proportional(12.5), ON_ACCENT.gamma_multiply(t));
+                    ui.painter().text(b.center(), Align2::CENTER_CENTER, tr("Go live"), FontId::proportional(12.5), ON_ACCENT.gamma_multiply(t));
                     if r.clicked() {
                         self.player.go_live();
                     }
                     x = b.right() + 12.0;
                 }
-                ui.painter().text(Pos2::new(x, c.center().y), Align2::LEFT_CENTER, format!("watching for {}", fmt_time(pos)), FontId::proportional(13.0), muted().gamma_multiply(t));
+                ui.painter().text(
+                    Pos2::new(x, c.center().y),
+                    Align2::LEFT_CENTER,
+                    trf("Watching for {time}", &[("time", &fmt_time(pos))]),
+                    FontId::proportional(13.0),
+                    muted().gamma_multiply(t),
+                );
             } else {
                 let id = uid("seek");
                 let sr = ui
@@ -473,8 +490,8 @@ impl App {
                         self.watching.as_ref().is_some_and(|w| w.id == c.video.id) && ht >= c.start && ht <= c.end
                     });
                     let chapter = match (chapter, in_clip) {
-                        (Some(ch), Some(c)) => Some(format!("{ch}  •  clip {}–{}", fmt_time(c.start), fmt_time(c.end))),
-                        (None, Some(c)) => Some(format!("Clip {}–{}", fmt_time(c.start), fmt_time(c.end))),
+                        (Some(ch), Some(c)) => Some(trf("{channel}  •  clip {start}–{end}", &[("channel", &ch), ("start", &fmt_time(c.start)), ("end", &fmt_time(c.end))])),
+                        (None, Some(c)) => Some(trf("Clip {start}–{end}", &[("start", &fmt_time(c.start)), ("end", &fmt_time(c.end))])),
                         (ch, None) => ch,
                     };
                     let label = chapter
@@ -671,7 +688,7 @@ impl App {
                 let base = if resp.hovered() { fill.gamma_multiply(1.5) } else { fill };
                 ui.painter().rect_filled(r, CornerRadius::same(8), base.gamma_multiply(t));
                 let txt = if fill == accent() { ON_ACCENT } else { ink() };
-                if compact && !icon.is_empty() && label != "Audio" {
+                if compact && !icon.is_empty() && label != tr("Audio") {
                     icon_label(ui, r.center(), icon, "", txt.gamma_multiply(t), false);
                     resp.on_hover_text(label)
                 } else {
@@ -708,7 +725,7 @@ impl App {
                 egui::Popup::menu(&spresp).show(|ui| {
                     ui.set_min_width(110.0);
                     for v in [0.5f32, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0] {
-                        let name = if v == 1.0 { "Normal".to_string() } else { format!("{v}×") };
+                        let name = if v == 1.0 { tr("Normal") } else { format!("{v}×") };
                         if ui.selectable_label((sp - v).abs() < 0.01, name).clicked() {
                             new_speed = Some(v);
                             ui.close();
@@ -720,8 +737,8 @@ impl App {
             {
                 let ar = slot("audio");
                 let on = self.player.audio_mode;
-                let aresp = pill(ui, ar, "audiomode", "note", "Audio", false, if on { accent() } else { idle }, t)
-                    .on_hover_text("Play audio only (A)");
+                let aresp = pill(ui, ar, "audiomode", "note", &tr("Audio"), false, if on { accent() } else { idle }, t)
+                    .on_hover_text(tr("Play audio only (A)"));
                 if aresp.clicked() {
                     toggle_audio = true;
                 }
@@ -734,7 +751,7 @@ impl App {
                 let ccresp = pill(ui, ccr, "ccpill", "cc", "", false, if on { accent() } else { idle }, t);
                 egui::Popup::menu(&ccresp).show(|ui| {
                     ui.set_min_width(200.0);
-                    if ui.selectable_label(self.cc_track.is_none(), "Off").clicked() {
+                    if ui.selectable_label(self.cc_track.is_none(), tr("Off")).clicked() {
                         set_cc = Some(None);
                         ui.close();
                     }
@@ -752,7 +769,7 @@ impl App {
                         }
                     } else if !is_local_file(&ctracks) {
                         ui.separator();
-                        ui.menu_button("Translate to…", |ui| {
+                        ui.menu_button(tr("Translate to…"), |ui| {
                             for (code, name) in TRANSLATE_TO {
                                 if ui.selectable_label(self.cc_translated.as_deref() == Some(*code), *name).clicked() {
                                     translate = Some((*code, *name));
@@ -771,14 +788,14 @@ impl App {
                     ui.set_min_width(220.0);
                     if let Some(w) = self.watching.clone().filter(|w| w.music) {
                         let liked = self.lists.iter().any(|l| l.id == "liked" && l.videos.iter().any(|x| x.id == w.id));
-                        if ui.selectable_label(liked, "Like this song").clicked() {
+                        if ui.selectable_label(liked, tr("Like this song")).clicked() {
                             list_toggle = Some(("liked".to_string(), w));
                             ui.close();
                         }
                     }
                     if let Some(w) = self.watching.clone().filter(|w| !w.id.starts_with("local:")) {
                         let in_wl = self.lists.iter().any(|l| l.id == "watchlater" && l.videos.iter().any(|x| x.id == w.id));
-                        if ui.selectable_label(in_wl, "Watch later  (W)").clicked() {
+                        if ui.selectable_label(in_wl, tr("Watch later  (W)")).clicked() {
                             list_toggle = Some(("watchlater".to_string(), w));
                             ui.close();
                         }
@@ -787,34 +804,34 @@ impl App {
                         open_clip = true;
                         ui.close();
                     }
-                    if ui.selectable_label(self.settings.ambient, "Ambient mode  (B)").clicked() {
+                    if ui.selectable_label(self.settings.ambient, tr("Ambient mode  (B)")).clicked() {
                         toggle_ambient = true;
                         ui.close();
                     }
-                    if ui.selectable_label(self.player.audio_mode, "Audio only  (A)").clicked() {
+                    if ui.selectable_label(self.player.audio_mode, tr("Audio only  (A)")).clicked() {
                         toggle_audio = true;
                         ui.close();
                     }
                     ui.separator();
-                    ui.label(egui::RichText::new("REPEAT").size(11.0).color(muted()).strong());
-                    for (r, l) in [(Repeat::Off, "Off"), (Repeat::One, "Repeat this video"), (Repeat::All, "Repeat the queue")] {
+                    ui.label(egui::RichText::new(tr("REPEAT")).size(11.0).color(muted()).strong());
+                    for (r, l) in [(Repeat::Off, tr("Off")), (Repeat::One, tr("Repeat this video")), (Repeat::All, tr("Repeat the queue"))] {
                         if ui.selectable_label(self.settings.repeat == r, l).clicked() {
                             new_repeat = Some(r);
                         }
                     }
                     ui.separator();
-                    if ui.selectable_label(self.settings.shuffle, "Shuffle the queue").clicked() {
+                    if ui.selectable_label(self.settings.shuffle, tr("Shuffle the queue")).clicked() {
                         toggle_shuffle = true;
                     }
                     ui.separator();
-                    ui.label(egui::RichText::new("SLEEP TIMER").size(11.0).color(muted()).strong());
+                    ui.label(egui::RichText::new(tr("SLEEP TIMER")).size(11.0).color(muted()).strong());
                     let active = match &self.sleep {
-                        Some(SleepMode::At(t)) => format!("Stops in {}", fmt_time(t.saturating_duration_since(Instant::now()).as_secs_f64())),
-                        Some(SleepMode::EndOfVideo) => "Stops after this video".to_string(),
-                        None => "Off".to_string(),
+                        Some(SleepMode::At(t)) => trf("Stops in {time}", &[("time", &fmt_time(t.saturating_duration_since(Instant::now()).as_secs_f64()))]),
+                        Some(SleepMode::EndOfVideo) => tr("Stops after this video"),
+                        None => tr("Off"),
                     };
                     ui.label(egui::RichText::new(active).size(12.0).color(muted()));
-                    for (label, mins) in [("15 minutes", 15u64), ("30 minutes", 30), ("45 minutes", 45), ("1 hour", 60)] {
+                    for (label, mins) in [(tr("15 minutes"), 15u64), (tr("30 minutes"), 30), (tr("45 minutes"), 45), (tr("1 hour"), 60)] {
                         if ui.button(label).clicked() {
                             set_sleep = Some(Some(SleepMode::At(Instant::now() + Duration::from_secs(mins * 60))));
                             ui.close();
@@ -844,12 +861,13 @@ impl App {
                 } else {
                     ("Comments", SideTab::Comments)
                 };
+                let lbl = tr(lbl);
                 let cresp = pill(
                     ui,
                     cr,
                     "cm",
                     if music { "note" } else { "comment" },
-                    lbl,
+                    &lbl,
                     false,
                     if self.comments_open && self.side_tab == tab { accent() } else { idle },
                     t,
@@ -866,7 +884,7 @@ impl App {
             if self.queue.len() > 1 {
                 let qr = slot("queue");
                 let on = self.comments_open && self.side_tab == SideTab::Queue;
-                let qresp = pill(ui, qr, "queuepill", "queue", &format!("Queue {}", self.queue.len()), false, if on { accent() } else { idle }, t);
+                let qresp = pill(ui, qr, "queuepill", "queue", &trf("Queue ({count})", &[("count", &self.queue.len().to_string())]), false, if on { accent() } else { idle }, t);
                 if qresp.clicked() {
                     open_queue = true;
                 }
@@ -880,9 +898,9 @@ impl App {
                     let da = self.is_downloaded(&w.id, true);
                     let (dicon, label, chev) = match (prog, dv, da) {
                         (Some(p), _, _) => ("download", format!("{}%", (p * 100.0) as u32), false),
-                        (None, true, _) => ("check", "Saved".to_string(), false),
-                        (None, false, true) => ("check", if is_pod { "Saved" } else { "Audio saved" }.to_string(), false),
-                        _ => ("download", "Download".to_string(), !is_pod),
+                        (None, true, _) => ("check", tr("Saved"), false),
+                        (None, false, true) => ("check", tr(if is_pod { "Saved" } else { "Audio saved" }), false),
+                        _ => ("download", tr("Download"), !is_pod),
                     };
                     let fill = if dv || da { TEAL } else { idle };
                     let dresp = pill(ui, dr, "dlbtn", dicon, &label, chev, fill, t);
@@ -899,9 +917,9 @@ impl App {
                     egui::Popup::menu(&dresp).show(|ui| {
                         ui.set_min_width(200.0);
                         if dv {
-                            ui.add_enabled(false, egui::Button::new("Video downloaded"));
+                            ui.add_enabled(false, egui::Button::new(tr("Video downloaded")));
                         } else {
-                            ui.label(egui::RichText::new("VIDEO  (mp4)").size(11.0).color(muted()).strong());
+                            ui.label(egui::RichText::new(tr("VIDEO  (mp4)")).size(11.0).color(muted()).strong());
                             let mut qs = self.player.qualities();
                             qs.sort_unstable_by(|a, b| b.cmp(a));
                             for q in qs {
@@ -913,7 +931,7 @@ impl App {
                         }
                         ui.separator();
                         if da {
-                            ui.add_enabled(false, egui::Button::new("Audio downloaded"));
+                            ui.add_enabled(false, egui::Button::new(tr("Audio downloaded")));
                         } else if ui.button(tr("Audio only  (m4a)")).clicked() {
                             start_dl = Some((w.clone(), true, 0));
                             ui.close();
@@ -923,12 +941,13 @@ impl App {
                 }
                 let sr = slot("playlist");
                 let in_any = self.lists.iter().any(|l| l.videos.iter().any(|x| x.id == w.id));
+                let playlist_label = tr(if in_any { "Saved" } else { "Playlist" });
                 let sresp = pill(
                     ui,
                     sr,
                     "plbtn",
                     if in_any { "heart_fill" } else { "playlist_add" },
-                    if in_any { "Saved" } else { "Playlist" },
+                    &playlist_label,
                     true,
                     if in_any { accent() } else { idle },
                     t,
@@ -976,7 +995,7 @@ impl App {
                     let _ = tx.send(Msg::Cues(vid, usize::MAX, r));
                     ctx.request_repaint();
                 });
-                self.toast(format!("Translating captions to {name}"));
+            self.toast(trf("Translating captions to {name}", &[("name", &name)]));
             }
         }
         if let Some(c) = set_cc {
@@ -1028,7 +1047,7 @@ impl App {
         }
         if let Some(m) = set_sleep {
             self.sleep = m;
-            self.toast(if self.sleep.is_some() { "Sleep timer set" } else { "Sleep timer off" });
+            self.toast(tr(if self.sleep.is_some() { "Sleep timer set" } else { "Sleep timer off" }));
         }
         if show_help {
             self.show_help = true;
@@ -1101,7 +1120,7 @@ impl App {
         let title = truncate(ui, &w.title, FontId::proportional(15.0), tw, 1);
         let up_next = self.queue_idx.and_then(|i| self.queue.get(i + 1)).map(|q| q.title());
         let sub_full = match up_next {
-            Some(n) => format!("{}   •   Up next: {n}", w.channel_name),
+            Some(n) => trf("{channel}   •   Up next: {title}", &[("channel", &w.channel_name), ("title", &n)]),
             None => w.channel_name.clone(),
         };
         let sub = truncate(ui, &sub_full, FontId::proportional(12.5), tw, 1);
@@ -1164,7 +1183,7 @@ impl App {
         let aspect = self.player.aspect().clamp(0.5, 3.0);
         let w = 480.0;
         let builder = egui::ViewportBuilder::default()
-            .with_title("TubeGlass — Picture in Picture")
+            .with_title(tr("TubeGlass — Picture in Picture"))
             .with_inner_size([w, w / aspect])
             .with_min_inner_size([240.0, 140.0])
             .with_always_on_top()

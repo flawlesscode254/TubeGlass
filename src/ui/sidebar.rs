@@ -247,7 +247,7 @@ impl App {
         }
         let dl_label = if active > 0 {
             let avg = self.jobs.iter().map(|j| j.progress).sum::<f32>() / active as f32;
-            format!("Downloads  ({active} • {}%)", (avg * 100.0) as u32)
+            trf("Downloads  ({active} • {percent}%)", &[("active", &active.to_string()), ("percent", &((avg * 100.0) as u32).to_string())])
         } else {
             tr("Downloads")
         };
@@ -383,10 +383,10 @@ impl App {
                 }
             } else {
                 ui.horizontal(|ui| {
-                    ui.label(egui::RichText::new("GROUPS").size(11.0).color(muted()).strong());
+                    ui.label(egui::RichText::new(tr("GROUPS")).size(11.0).color(muted()).strong());
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         let (r, resp) = ui.allocate_exact_size(vec2(24.0, 24.0), Sense::click());
-                        let resp = resp.on_hover_cursor(egui::CursorIcon::PointingHand).on_hover_text("New group");
+                        let resp = resp.on_hover_cursor(egui::CursorIcon::PointingHand).on_hover_text(tr("New group"));
                         let hv = ui.ctx().animate_bool_with_time(resp.id, resp.hovered(), 0.12);
                         ui.painter().rect_filled(r, CornerRadius::same(8), ov((10.0 + 25.0 * hv) as u8));
                         icons::draw(ui.painter(), r.center(), "plus", 13.0, if hv > 0.5 { ink() } else { icons::muted_icon() });
@@ -394,7 +394,7 @@ impl App {
                     });
                 });
                 if self.groups.is_empty() {
-                    ui.label(egui::RichText::new("Group channels, e.g. Music or News. Right-click a channel to add it.").size(12.0).color(muted()));
+                    ui.label(egui::RichText::new(tr("Group channels, e.g. Music or News. Right-click a channel to add it.")).size(12.0).color(muted()));
                 }
             }
             for g in &self.groups {
@@ -415,10 +415,10 @@ impl App {
             if compact {
                 ui.separator();
             } else {
-                ui.label(egui::RichText::new("CHANNELS").size(11.0).color(muted()).strong());
+                ui.label(egui::RichText::new(tr("CHANNELS")).size(11.0).color(muted()).strong());
                 if !self.channels.is_empty() {
                     let w = ui.available_width();
-                    text_field(ui, &mut self.chan_filter, "Filter channels", w, 36.0, "search", None, false);
+                    text_field(ui, &mut self.chan_filter,&tr("Filter channels"), w, 36.0, "search", None, false);
                     ui.add_space(4.0);
                 }
             }
@@ -426,7 +426,7 @@ impl App {
             if !needle.is_empty() && !compact {
                 let n = self.channels.iter().filter(|c| fold(&c.name).contains(&needle)).count();
                 if n == 0 {
-                    ui.label(egui::RichText::new("No channels match.").color(muted()).size(13.0));
+                    ui.label(egui::RichText::new(tr("No channels match.")).color(muted()).size(13.0));
                 }
             }
             for c in self.channels.iter().filter(|c| needle.is_empty() || fold(&c.name).contains(&needle)) {
@@ -462,7 +462,7 @@ impl App {
                     new_sel = Some(Sel::Channel(c.id.clone()));
                 }
                 r.context_menu(|ui| {
-                    ui.menu_button("Add to group", |ui| {
+                    ui.menu_button(tr("Add to group"), |ui| {
                         for g in &self.groups {
                             let has = g.channels.contains(&c.id);
                             if ui.selectable_label(has, g.name.clone()).clicked() {
@@ -478,9 +478,9 @@ impl App {
                             ui.close();
                         }
                     });
-                    ui.menu_button("Notifications", |ui| {
+                    ui.menu_button(tr("Notifications"), |ui| {
                         let cur = self.settings.chan_prefs.get(&c.id).map_or(0, |p| p.notify);
-                        for (v, label) in [(0u8, "Live streams only"), (1, "Live streams and new uploads"), (2, "Off for this channel")] {
+                        for (v, label) in [(0u8, tr("Live streams only")), (1, tr("Live streams and new uploads")), (2, tr("Off for this channel"))] {
                             if ui.selectable_label(cur == v, label).clicked() {
                                 chan_notify = Some((c.id.clone(), v));
                                 ui.close();
@@ -495,7 +495,7 @@ impl App {
                 });
             }
             if self.channels.is_empty() && !compact {
-                ui.label(egui::RichText::new("Nothing here yet. Add a channel above to get started.").color(muted()).size(13.0));
+                ui.label(egui::RichText::new(tr("Nothing here yet. Add a channel above to get started.")).color(muted()).size(13.0));
             }
         });
         if open_file {
@@ -517,7 +517,7 @@ impl App {
             self.settings.chan_prefs.entry(cid).or_default().notify = v;
             self.save_settings();
             if !self.settings.notifications {
-                self.toast("Turn on notifications in Settings to receive them");
+                self.toast(tr("Turn on notifications in Settings to receive them"));
             }
         }
         if let Some((gid, cid)) = group_toggle {

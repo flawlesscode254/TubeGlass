@@ -8,31 +8,31 @@ impl App {
         self.sync_lib_filter();
         let videos = self.visible_videos();
         let title = match &self.sel {
-            Sel::Downloads => "Downloads".to_string(),
-            Sel::Settings => "Settings".to_string(),
-            Sel::Stats => "Insights".to_string(),
-            Sel::Clips => "Clips".to_string(),
-            Sel::Podcasts => "Podcasts".to_string(),
-            Sel::Podcast(_) => "Podcast".to_string(),
-            Sel::Music | Sel::MusicAlbum(_) | Sel::MusicArtist(_) => "Music".to_string(),
+            Sel::Downloads => tr("Downloads"),
+            Sel::Settings => tr("Settings"),
+            Sel::Stats => tr("Insights"),
+            Sel::Clips => tr("Clips"),
+            Sel::Podcasts => tr("Podcasts"),
+            Sel::Podcast(_) => tr("Podcast"),
+            Sel::Music | Sel::MusicAlbum(_) | Sel::MusicArtist(_) => tr("Music"),
             Sel::Group(gid) => self.groups.iter().find(|g| &g.id == gid).map(|g| g.name.clone()).unwrap_or_default(),
-            Sel::History => "History".to_string(),
+            Sel::History => tr("History"),
             Sel::Local(id) => self
                 .lists
                 .iter()
                 .find(|l| &l.id == id)
                 .map(|l| l.name.clone())
                 .unwrap_or_default(),
-            Sel::Home => "Latest from your channels".to_string(),
-            Sel::Search => format!("Results for “{}”", self.search_query),
-            Sel::Live => "Live now".to_string(),
+            Sel::Home => tr("Latest from your channels"),
+            Sel::Search => trf("Results for “{query}”", &[("query", &self.search_query)]),
+            Sel::Live => tr("Live now"),
             Sel::Playlist(_) => self
                 .playlist
                 .as_ref()
                 .and_then(|p| p.1.as_ref())
                 .and_then(|r| r.as_ref().ok())
                 .map(|(t, _)| t.clone())
-                .unwrap_or_else(|| "Playlist".into()),
+                .unwrap_or_else(|| tr("Playlist")),
             Sel::Channel(id) => self
                 .channels
                 .iter()
@@ -74,7 +74,7 @@ impl App {
                     let (r, resp) = ui.allocate_exact_size(vec2(46.0, 46.0), Sense::click());
                     let resp = resp
                         .on_hover_cursor(egui::CursorIcon::PointingHand)
-                        .on_hover_text("Back  (Alt+←)");
+                        .on_hover_text(tr("Back  (Alt+←)"));
                     let hv = ui.ctx().animate_bool_with_time(resp.id, resp.hovered(), 0.12);
                     ui.painter().add(surface::capsule(r, 1.0, if hv > 0.05 { Some(accent()) } else { None }, false));
                     icons::draw(ui.painter(), r.center(), "arrow_left", 19.0, if hv > 0.5 { accent() } else { ink() });
@@ -85,12 +85,11 @@ impl App {
                 }
                 text_field(
                     ui,
-                    &mut self.search_input,
-                    "Search YouTube — videos and channels",
+                    &mut self.search_input, &tr("Search YouTube — videos and channels"),
                     ui.available_width(),
                     46.0,
                     "search",
-                    Some("Search"),
+                    Some(&tr("Search")),
                     false,
                 )
             })
@@ -147,7 +146,7 @@ impl App {
                             .show(ui, |ui| {
                                 ui.set_width(width - 12.0);
                                 if show_recent {
-                                    ui.label(egui::RichText::new("RECENT SEARCHES").size(11.0).color(muted()).strong());
+                                    ui.label(egui::RichText::new(tr("RECENT SEARCHES")).size(11.0).color(muted()).strong());
                                 }
                                 for sg in &rows {
                                     let (rect, resp) =
@@ -215,7 +214,7 @@ impl App {
             if self.batch_total > 1 && matches!(self.sel, Sel::Home) {
                 let done = self.batch_total.saturating_sub(self.batch.len());
                 let frac = done as f32 / self.batch_total as f32;
-                progress_pill(ui, frac, &format!("Refreshing  {done} / {}", self.batch_total), 210.0);
+                progress_pill(ui, frac, &trf("Refreshing  {done} / {total}", &[("done", &done.to_string()), ("total", &self.batch_total.to_string())]), 210.0);
                 ui.ctx().request_repaint_after(Duration::from_millis(200));
             } else if busy {
                 ui.add(egui::Spinner::new().size(18.0));
@@ -227,7 +226,7 @@ impl App {
                     _ => None,
                 };
                 if let Some(ts) = ts {
-                    ui.label(egui::RichText::new(format!("updated {}", ago(ts))).size(13.0).color(muted()));
+                    ui.label(egui::RichText::new(trf("Updated {time}", &[("time", &ago(ts))])).size(13.0).color(muted()));
                 }
             }
             // on a narrow window the buttons drop to their own line, and wrap if they still do not fit
@@ -236,11 +235,11 @@ impl App {
             }
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center).with_main_wrap(true), |ui| {
                 if let Sel::Group(gid) = self.sel.clone() {
-                    if icon_btn(ui, "", "Delete group", None, ink(), false, true).clicked() {
+                    if icon_btn(ui, "",&tr("Delete group"), None, ink(), false, true).clicked() {
                         self.groups.retain(|g| g.id != gid);
                         save_groups(&self.groups);
                         self.sel = Sel::Home;
-                    } else if icon_btn(ui, "refresh", "Refresh", None, ink(), false, true).clicked() {
+                    } else if icon_btn(ui, "refresh",&tr("Refresh"), None, ink(), false, true).clicked() {
                         let members: Vec<String> = self.groups.iter().find(|g| g.id == gid).map(|g| g.channels.clone()).unwrap_or_default();
                         for c in self.channels.clone().into_iter().filter(|c| members.contains(&c.id)) {
                             self.refresh(&c);
@@ -248,22 +247,23 @@ impl App {
                     }
                 }
                 if matches!(self.sel, Sel::Playlist(_) | Sel::Local(_)) && !videos.is_empty() {
-                    let sh = icon_btn(ui, "shuffle", "Shuffle", None, ink(), false, true);
+                    let sh = icon_btn(ui, "shuffle",&tr("Shuffle"), None, ink(), false, true);
                     if sh.clicked() {
                         self.play_all_visible(true);
                     }
-                    if icon_btn(ui, "play", "Play all", Some(accent()), ON_ACCENT, false, true).clicked() {
+                    if icon_btn(ui, "play",&tr("Play all"), Some(accent()), ON_ACCENT, false, true).clicked() {
                         self.play_all_visible(false);
                     }
                     let have = self.offline_count(&videos);
-                    let label = if have == videos.len() { "Downloaded".to_string() } else { format!("Download all  ({have}/{})", videos.len()) };
+                    let label = if have == videos.len() { tr("Downloaded") } else { trf("Download all  ({downloaded}/{total})", &[("downloaded", &have.to_string()), ("total", &videos.len().to_string())]) };
                     if icon_btn(ui, if have < videos.len() { "download" } else { "check" }, &label, None, ink(), false, have < videos.len()).clicked() {
                         download_visible = true;
                     }
                     if let Sel::Local(id) = self.sel.clone() {
                         let on = self.lists.iter().any(|l| l.id == id && l.offline);
-                        let b = icon_btn(ui, if on { "check" } else { "download" }, if on { "Kept offline" } else { "Keep offline" }, Some(if on { accent() } else { card() }), if on { ON_ACCENT } else { ink() }, false, true);
-                        if b.on_hover_text("Keep every item of this playlist downloaded, including ones added later").clicked() {
+                        let label = tr(if on { "Kept offline" } else { "Keep offline" });
+                        let b = icon_btn(ui, if on { "check" } else { "download" }, &label, Some(if on { accent() } else { card() }), if on { ON_ACCENT } else { ink() }, false, true);
+                        if b.on_hover_text(tr("Keep every item of this playlist downloaded, including ones added later")).clicked() {
                             if let Some(l) = self.lists.iter_mut().find(|l| l.id == id) {
                                 l.offline = !l.offline;
                                 save_lists(&self.lists);
@@ -273,13 +273,13 @@ impl App {
                         }
                     }
                     // a YouTube playlist can be kept as an editable local one
-                    if matches!(self.sel, Sel::Playlist(_)) && ui.add(egui::Button::new("Save as playlist")).clicked() {
+                    if matches!(self.sel, Sel::Playlist(_)) && ui.add(egui::Button::new(tr("Save as playlist"))).clicked() {
                         save_as_local = true;
                     }
                 }
                 if self.sel == Sel::History {
                     if !self.history.is_empty() {
-                        let label = if self.hist_confirm { "Confirm clear" } else { "Clear history" };
+                        let label = tr(if self.hist_confirm { "Confirm clear" } else { "Clear history" });
                         let b = egui::Button::new(egui::RichText::new(label).color(if self.hist_confirm { Color32::WHITE } else { ink() }))
                             .fill(if self.hist_confirm { LIVE } else { card() });
                         if ui.add(b).clicked() {
@@ -293,7 +293,7 @@ impl App {
                         }
                     }
                 } else if let Sel::Local(id) = self.sel.clone() {
-                    if icon_btn(ui, "", "Delete playlist", None, ink(), false, true).clicked() {
+                    if icon_btn(ui, "",&tr("Delete playlist"), None, ink(), false, true).clicked() {
                         self.lists.retain(|l| l.id != id);
                         if !self.lists.iter().any(|l| l.id == "favorites") {
                             self.lists.insert(0, LocalList { id: "favorites".into(), name: "Favorites".into(), videos: vec![], offline: false });
@@ -308,22 +308,22 @@ impl App {
                         .filter_map(|r| r.as_ref().ok())
                         .flatten()
                         .any(|v| !self.seen.contains(&v.id));
-                    any_new && icon_btn(ui, "check", "Mark all as seen", None, ink(), false, true).clicked()
+                    any_new && icon_btn(ui, "check",&tr("Mark all as seen"), None, ink(), false, true).clicked()
                 } {
                     self.mark_all_seen();
-                } else if !matches!(self.sel, Sel::Group(_)) && icon_btn(ui, "refresh", "Refresh", None, ink(), false, true).clicked() {
+                } else if !matches!(self.sel, Sel::Group(_)) && icon_btn(ui, "refresh",&tr("Refresh"), None, ink(), false, true).clicked() {
                     self.refresh_all();
                     if self.sel == Sel::Live {
                         self.load_live();
                     }
                 }
                 ui.add_space(8.0);
-                for (f, label) in [(Filter::Videos, "Videos"), (Filter::Live, "Live"), (Filter::New, "New"), (Filter::All, "All")] {
+                for (f, label) in [(Filter::Videos, tr("Videos")), (Filter::Live, tr("Live")), (Filter::New, tr("New")), (Filter::All, tr("All"))] {
                     if own_line {
                         break;
                     }
                     let on = self.filter == f;
-                    if icon_btn(ui, "", label, Some(if on { accent() } else { card() }), if on { ON_ACCENT } else { muted() }, false, true).clicked() {
+                    if icon_btn(ui, "", &label, Some(if on { accent() } else { card() }), if on { ON_ACCENT } else { muted() }, false, true).clicked() {
                         self.filter = f;
                     }
                 }
@@ -339,7 +339,7 @@ impl App {
         };
         if has_items {
             let w = ui.available_width().min(460.0);
-            text_field(ui, &mut self.lib_filter, "Search this list", w, 38.0, "search", None, false);
+            text_field(ui, &mut self.lib_filter,&tr("Search this list"), w, 38.0, "search", None, false);
             ui.add_space(6.0);
         }
 
@@ -349,47 +349,47 @@ impl App {
             && !(matches!(self.sel, Sel::Channel(_)) && self.chan_tab == ChanTab::About);
         // sort and filter chips for a channel's videos and for playlists
         if self.has_list_tools() && (shows_videos || self.list_sort != 0 || self.list_date != 0 || self.list_len != 0) {
-            let sorts = ["Default order", "Newest", "Oldest", "Most viewed", "Least viewed", "Longest", "Shortest", "Title A–Z"];
-            let dates = ["Any time", "Today", "This week", "This month", "This year"];
-            let lens = ["Any length", "Under 4 min", "4–20 min", "Over 20 min"];
+            let sorts = [tr("Default order"), tr("Newest"), tr("Oldest"), tr("Most viewed"), tr("Least viewed"), tr("Longest"), tr("Shortest"), tr("Title A–Z")];
+            let dates = [tr("Any time"), tr("Today"), tr("This week"), tr("This month"), tr("This year")];
+            let lens = [tr("Any length"), tr("Under 4 min"), tr("4–20 min"), tr("Over 20 min")];
             ui.horizontal_wrapped(|ui| {
                 let chip = |ui: &mut egui::Ui, label: String, active: bool| -> egui::Response {
                     icon_btn(ui, "", &label, Some(if active { accent() } else { card() }), if active { ON_ACCENT } else { ink() }, true, true)
                 };
-                let r1 = chip(ui, format!("Sort: {}", sorts[self.list_sort as usize % 8]), self.list_sort != 0);
+                let r1 = chip(ui, trf("Sort: {value}", &[("value", &sorts[self.list_sort as usize % 8])]), self.list_sort != 0);
                 egui::Popup::menu(&r1).show(|ui| {
                     for (i, n) in sorts.iter().enumerate() {
-                        if ui.selectable_label(self.list_sort as usize == i, *n).clicked() {
+                        if ui.selectable_label(self.list_sort as usize == i, n).clicked() {
                             self.list_sort = i as u8;
                             ui.close();
                         }
                     }
                 });
-                let r2 = chip(ui, dates[self.list_date as usize % 5].to_string(), self.list_date != 0);
+                let r2 = chip(ui, dates[self.list_date as usize % 5].clone(), self.list_date != 0);
                 egui::Popup::menu(&r2).show(|ui| {
                     for (i, n) in dates.iter().enumerate() {
-                        if ui.selectable_label(self.list_date as usize == i, *n).clicked() {
+                        if ui.selectable_label(self.list_date as usize == i, n).clicked() {
                             self.list_date = i as u8;
                             ui.close();
                         }
                     }
                 });
-                let r3 = chip(ui, lens[self.list_len as usize % 4].to_string(), self.list_len != 0);
+                let r3 = chip(ui, lens[self.list_len as usize % 4].clone(), self.list_len != 0);
                 egui::Popup::menu(&r3).show(|ui| {
                     for (i, n) in lens.iter().enumerate() {
-                        if ui.selectable_label(self.list_len as usize == i, *n).clicked() {
+                        if ui.selectable_label(self.list_len as usize == i, n).clicked() {
                             self.list_len = i as u8;
                             ui.close();
                         }
                     }
                 });
-                if (self.list_sort != 0 || self.list_date != 0 || self.list_len != 0) && icon_btn(ui, "", "Reset", None, muted(), false, true).clicked() {
+                if (self.list_sort != 0 || self.list_date != 0 || self.list_len != 0) && icon_btn(ui, "",&tr("Reset"), None, muted(), false, true).clicked() {
                     self.list_sort = 0;
                     self.list_date = 0;
                     self.list_len = 0;
                 }
                 if matches!(self.sel, Sel::Channel(_)) {
-                    ui.label(egui::RichText::new("applies to the videos loaded so far").size(12.0).color(muted()));
+                    ui.label(egui::RichText::new(tr("applies to the videos loaded so far")).size(12.0).color(muted()));
                 }
             });
             ui.add_space(4.0);
@@ -400,10 +400,10 @@ impl App {
             let mut for_you = self.settings.home_for_you;
             ui.horizontal(|ui| {
                 if self.sel == Sel::Home {
-                    for (label, on_v) in [("Latest", false), ("For you", true)] {
+                    for (label, on_v) in [(tr("Latest"), false), (tr("For you"), true)] {
                         let on = for_you == on_v;
-                        let b = icon_btn(ui, "", label, Some(if on { accent() } else { card() }), if on { ON_ACCENT } else { ink() }, false, true);
-                        if b.on_hover_text(if on_v { "Ordered by what you watch and listen to" } else { "Newest first" }).clicked() {
+                        let b = icon_btn(ui, "", &label, Some(if on { accent() } else { card() }), if on { ON_ACCENT } else { ink() }, false, true);
+                        if b.on_hover_text(tr(if on_v { "Ordered by what you watch and listen to" } else { "Newest first" })).clicked() {
                             for_you = on_v;
                         }
                     }
@@ -423,25 +423,25 @@ impl App {
         if self.sel == Sel::Search {
             let mut changed = false;
             ui.horizontal(|ui| {
-                let sort = ["Relevance", "Rating", "Upload date", "View count"];
-                let date = [(0u8, "Any time"), (2, "Today"), (3, "This week"), (4, "This month"), (5, "This year")];
-                let dur = [(0u8, "Any length"), (1, "Under 4 min"), (3, "4–20 min"), (2, "Over 20 min")];
+                let sort = [tr("Relevance"), tr("Rating"), tr("Upload date"), tr("View count")];
+                let date = [(0u8, tr("Any time")), (2, tr("Today")), (3, tr("This week")), (4, tr("This month")), (5, tr("This year"))];
+                let dur = [(0u8, tr("Any length")), (1, tr("Under 4 min")), (3, tr("4–20 min")), (2, tr("Over 20 min"))];
                 let o = &mut self.search_opts;
                 let chip = |ui: &mut egui::Ui, label: String, active: bool| -> egui::Response {
                     icon_btn(ui, "", &label, Some(if active { accent() } else { card() }), if active { ON_ACCENT } else { ink() }, true, true)
                 };
-                let r1 = chip(ui, format!("Sort: {}", sort[o.sort as usize % 4]), o.sort != 0);
+                let r1 = chip(ui, trf("Sort: {value}", &[("value", &sort[o.sort as usize % 4])]), o.sort != 0);
                 egui::Popup::menu(&r1).show(|ui| {
                     for (i, n) in sort.iter().enumerate() {
-                        if ui.selectable_label(o.sort as usize == i, *n).clicked() {
+                        if ui.selectable_label(o.sort as usize == i, n).clicked() {
                             o.sort = i as u8;
                             changed = true;
                             ui.close();
                         }
                     }
                 });
-                let dl = date.iter().find(|d| d.0 == o.date).map_or("Any time", |d| d.1);
-                let r2 = chip(ui, dl.to_string(), o.date != 0);
+                let dl = date.iter().find(|d| d.0 == o.date).map_or_else(|| tr("Any time"), |d| d.1.clone());
+                let r2 = chip(ui, dl, o.date != 0);
                 egui::Popup::menu(&r2).show(|ui| {
                     for (v, n) in date {
                         if ui.selectable_label(o.date == v, n).clicked() {
@@ -451,8 +451,8 @@ impl App {
                         }
                     }
                 });
-                let ll = dur.iter().find(|d| d.0 == o.duration).map_or("Any length", |d| d.1);
-                let r3 = chip(ui, ll.to_string(), o.duration != 0);
+                let ll = dur.iter().find(|d| d.0 == o.duration).map_or_else(|| tr("Any length"), |d| d.1.clone());
+                let r3 = chip(ui, ll, o.duration != 0);
                 egui::Popup::menu(&r3).show(|ui| {
                     for (v, n) in dur {
                         if ui.selectable_label(o.duration == v, n).clicked() {
@@ -472,7 +472,7 @@ impl App {
 
         if let Sel::Channel(id) = &self.sel {
             if let Some(e) = self.tab_err.get(&format!("{id}:{}", self.chan_tab.key())) {
-                ui.colored_label(LIVE, format!("Could not load this tab: {e}"));
+                ui.colored_label(LIVE, trf("Could not load this tab: {error}", &[("error", e)]));
             }
             if self.chan_tab == ChanTab::About {
                 let about = self.fcache.about.get(id).cloned();
@@ -482,17 +482,17 @@ impl App {
         }
         if let Some((_, Some(Err(e)))) = &self.playlist {
             if matches!(self.sel, Sel::Playlist(_)) {
-                ui.colored_label(LIVE, format!("Could not load playlist: {e}"));
+                ui.colored_label(LIVE, trf("Could not load playlist: {error}", &[("error", e)]));
             }
         }
         if let Some(Err(e)) = &self.live {
             if self.sel == Sel::Live {
-                ui.colored_label(LIVE, format!("Could not load live streams: {e}"));
+                ui.colored_label(LIVE, trf("Could not load live streams: {error}", &[("error", e)]));
             }
         }
         if self.sel == Sel::Search {
             if let Some(Err(e)) = &self.svideos {
-                ui.colored_label(LIVE, format!("Search failed: {e}"));
+                ui.colored_label(LIVE, trf("Search failed: {error}", &[("error", e)]));
             }
         }
         let hits: Vec<ChannelHit> = if self.sel == Sel::Search && self.filter != Filter::Videos {
@@ -533,7 +533,7 @@ impl App {
             ui.add_space(60.0);
             ui.vertical_centered(|ui| {
                 ui.label(egui::RichText::new("◌").size(48.0).color(muted()));
-                ui.label(egui::RichText::new(if has_items && !self.lib_filter.trim().is_empty() {
+                ui.label(egui::RichText::new(tr(if has_items && !self.lib_filter.trim().is_empty() {
                     "Nothing in this list matches your search."
                 } else if self.sel == Sel::History {
                     "Nothing watched yet. Videos you open will show up here, and pick up where you left off."
@@ -543,7 +543,7 @@ impl App {
                     "Add your favourite channels to see their videos and live streams here."
                 } else {
                     "No videos to show."
-                }).size(16.0).color(muted()));
+                })).size(16.0).color(muted()));
             });
             return;
         }
@@ -606,7 +606,7 @@ impl App {
             .show_viewport(ui, |ui, view| {
                 let origin = ui.cursor().min.y;
                 if !hits.is_empty() {
-                    ui.label(egui::RichText::new("CHANNELS").size(11.0).color(muted()).strong());
+                    ui.label(egui::RichText::new(tr("CHANNELS")).size(11.0).color(muted()).strong());
                     for h in &hits {
                         let (rect, resp) = ui.allocate_exact_size(vec2(avail, 68.0), Sense::click());
                         let resp = resp.on_hover_cursor(egui::CursorIcon::PointingHand);
@@ -637,7 +637,7 @@ impl App {
                         let bresp = ui.interact(br, resp.id.with("add"), Sense::click()).on_hover_cursor(egui::CursorIcon::PointingHand);
                         let fill = if added { card_hi() } else if bresp.hovered() { accent2() } else { accent() };
                         ui.painter().rect_filled(br, CornerRadius::same(17), fill);
-                        icon_label(ui, br.center(), if added { "check" } else { "plus" }, if added { "Added" } else { "Add" }, if added { ink() } else { ON_ACCENT }, false);
+                        icon_label(ui, br.center(), if added { "check" } else { "plus" }, &tr(if added { "Added" } else { "Add" }), if added { ink() } else { ON_ACCENT }, false);
                         if bresp.clicked() && !added {
                             add_hit = Some(h.channel.clone());
                         } else if resp.clicked() && !bresp.hovered() {
@@ -647,7 +647,7 @@ impl App {
                     ui.add_space(14.0);
                 }
                 if !plhits.is_empty() {
-                    ui.label(egui::RichText::new("PLAYLISTS").size(11.0).color(muted()).strong());
+                    ui.label(egui::RichText::new(tr("PLAYLISTS")).size(11.0).color(muted()).strong());
                     for h in &plhits {
                         let (rect, resp) = ui.allocate_exact_size(vec2(avail, 76.0), Sense::click());
                         let resp = resp.on_hover_cursor(egui::CursorIcon::PointingHand);
@@ -674,7 +674,7 @@ impl App {
                     ui.add_space(14.0);
                 }
                 if (!hits.is_empty() || !plhits.is_empty()) && !videos.is_empty() {
-                    ui.label(egui::RichText::new("VIDEOS").size(11.0).color(muted()).strong());
+                    ui.label(egui::RichText::new(tr("VIDEOS")).size(11.0).color(muted()).strong());
                 }
                 let total = rows as f32 * (ch + gap);
                 let (area, _) = ui.allocate_exact_size(vec2(avail, total), Sense::hover());
@@ -716,7 +716,7 @@ impl App {
                     if more_busy {
                         ui.put(Rect::from_center_size(r.center(), vec2(28.0, 28.0)), egui::Spinner::new().color(accent()));
                     } else {
-                        let b = egui::Button::new(egui::RichText::new(if more_failed { "Retry" } else { "Load more" }).strong())
+                        let b = egui::Button::new(egui::RichText::new(tr(if more_failed { "Retry" } else { "Load more" })).strong())
                             .fill(card_hi())
                             .corner_radius(CornerRadius::same(18))
                             .min_size(vec2(140.0, 36.0));
@@ -770,8 +770,8 @@ impl App {
                     .and_then(|p| p.1.as_ref())
                     .and_then(|r| r.as_ref().ok())
                     .map(|(t, _)| t.clone())
-                    .unwrap_or_else(|| "Playlist".into()),
-                _ => "Playlist".into(),
+                    .unwrap_or_else(|| tr("Playlist")),
+                _ => tr("Playlist"),
             };
             self.save_playlist_locally(name, videos.clone());
         }

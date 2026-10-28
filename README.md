@@ -231,13 +231,26 @@ matching catalog. This setting only changes TubeGlass controls; it does not affe
 or caption translation.
 
 Catalogs live in `locales/<language-code>.json`. The build discovers every JSON catalog in that
-directory, so adding a language does not require Rust changes. Copy `locales/en.json`, translate its
-values, keep the keys unchanged, and add a `__language_name` value for the selector. Use UTF-8 and
-preserve every `{placeholder}` exactly. Missing keys use their English value at runtime.
+directory, so adding a language does not require Rust changes. Start a partial catalog with:
 
-Run `cargo test` before submitting a catalog. The localization tests check every catalog against
-English for missing keys and mismatched placeholders. Keep translator notes in the pull request,
-not in catalog values.
+```sh
+python3 scripts/new-locale.py fr Français
+```
+
+The command creates all current English keys with blank values. Translate any subset and submit it;
+blank or missing values fall back to English. Keep keys unchanged and preserve every `{placeholder}`
+in translated values. Use a lowercase base language code such as `fr`, not a region-specific code.
+
+Check progress and validate the locale files with:
+
+```sh
+python3 scripts/new-locale.py --coverage
+cargo test
+```
+
+The coverage report counts nonempty translated values. Builds audit UI source strings against the
+English catalog; tests reject unknown locale keys and invalid placeholders. Keep translator notes in
+the pull request, not in catalog values.
 
 ## Where your data lives
 

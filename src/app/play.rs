@@ -219,8 +219,8 @@ impl App {
             .parent()
             .and_then(|p| p.file_name())
             .and_then(|n| n.to_str())
-            .unwrap_or("Local file")
-            .to_string();
+            .map(str::to_owned)
+            .unwrap_or_else(|| tr("Local file"));
         self.watching = Some(Video {
             id: format!("local:{path}"),
             title,
@@ -258,9 +258,9 @@ impl App {
         let (tx, ctx) = (self.tx.clone(), self.ctx.clone());
         std::thread::spawn(move || {
             let mut d = rfd::FileDialog::new()
-                .set_title("Open media file")
-                .add_filter("Media files", media::EXTENSIONS)
-                .add_filter("All files", &["*"]);
+                .set_title(tr("Open media file"))
+                .add_filter(tr("Media files"), media::EXTENSIONS)
+                .add_filter(tr("All files"), &["*"]);
             if let Some(dir) = dir {
                 d = d.set_directory(dir);
             }
@@ -410,7 +410,7 @@ impl App {
         self.cache.remove(&w.id);
         self.inflight.insert(w.id.clone());
         self.player.set_loading();
-        self.toast("Trying another way to play this video…");
+        self.toast(tr("Trying another way to play this video…"));
         let (tx, ctx, id) = (self.tx.clone(), self.ctx.clone(), w.id.clone());
         std::thread::spawn(move || {
             let r = yt::streams_alt(&id);
@@ -572,7 +572,7 @@ impl App {
         }
         if matches!(self.sleep, Some(SleepMode::EndOfVideo)) {
             self.sleep = None;
-            self.toast("Sleep timer: stopped after this video");
+            self.toast(tr("Sleep timer: stopped after this video"));
             return;
         }
         if self.settings.autoplay && self.queue_next() {
@@ -598,7 +598,7 @@ impl App {
         if self.queue_idx.is_none() && self.watching.is_none() {
             self.queue_idx = Some(0);
         }
-        self.toast(if next { "Playing next" } else { "Added to queue" });
+        self.toast(tr(if next { "Playing next" } else { "Added to queue" }));
     }
 
     /// Loads the caption track `idx` of the playing video so it can be drawn.
@@ -663,7 +663,7 @@ impl App {
                     self.last_skip = Some(i);
                     let (end, cat) = (self.sponsor[i].end, self.sponsor[i].category.clone());
                     self.player.seek(end + 0.05);
-                    self.toast(format!("Skipped {cat}"));
+                    self.toast(trf("Skipped {category}", &[("category", &cat)]));
                 }
             } else if self.last_skip.is_some_and(|i| pos < self.sponsor.get(i).map_or(0.0, |s| s.start - 1.0)) {
                 self.last_skip = None;

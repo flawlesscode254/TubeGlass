@@ -162,7 +162,7 @@ impl App {
             // podcasts bring their own transcript (when the feed has one)
             self.ensure_pod_transcript();
         } else if tracks.is_empty() {
-            ui.label(egui::RichText::new("This video has no captions, so there is no transcript.").size(14.0).color(muted()));
+            ui.label(egui::RichText::new(tr("This video has no captions, so there is no transcript.")).size(14.0).color(muted()));
             return;
         }
         if !is_pod && self.tr.as_ref().is_none_or(|t| t.0 != w.id) {
@@ -187,13 +187,13 @@ impl App {
                 return;
             }
             Some(Err(e)) => {
-                ui.label(egui::RichText::new(format!("Could not load the transcript: {e}")).color(muted()));
+                ui.label(egui::RichText::new(trf("Could not load the transcript: {error}", &[("error", e)])).color(muted()));
                 return;
             }
             Some(Ok(c)) => c.clone(),
         };
         let w_field = ui.available_width();
-        text_field(ui, &mut self.tr_filter, "Search the transcript", w_field, 36.0, "search", None, false);
+        text_field(ui, &mut self.tr_filter, &tr("Search the transcript"), w_field, 36.0, "search", None, false);
         ui.add_space(6.0);
         let needle = fold(self.tr_filter.trim());
         let rows: Vec<usize> = (0..cues.len()).filter(|i| needle.is_empty() || fold(&cues[*i].text).contains(&needle)).collect();
@@ -243,16 +243,16 @@ impl App {
         let mut add = false;
         ui.horizontal(|ui| {
             let fw = ui.available_width() - 130.0;
-            let f = text_field(ui, &mut self.note_input, "Add a note at this moment", fw, 38.0, "search", None, false);
+            let f = text_field(ui, &mut self.note_input, &tr("Add a note at this moment"), fw, 38.0, "search", None, false);
             add |= f.submit;
-            if ui.add(egui::Button::new(egui::RichText::new(format!("Add  {}", fmt_time(pos))).color(ON_ACCENT).strong()).fill(accent())).clicked() {
+            if ui.add(egui::Button::new(egui::RichText::new(trf("Add  {time}", &[("time", &fmt_time(pos))])).color(ON_ACCENT).strong()).fill(accent())).clicked() {
                 add = true;
             }
         });
         if add {
             let text = self.note_input.trim().to_string();
             let list = self.bookmarks.entry(w.id.clone()).or_default();
-            list.push(Bookmark { t: pos, text: if text.is_empty() { "Bookmark".to_string() } else { text } });
+            list.push(Bookmark { t: pos, text: if text.is_empty() { tr("Bookmark") } else { text } });
             list.sort_by(|a, b| a.t.total_cmp(&b.t));
             self.note_input.clear();
             save_bookmarks(&self.bookmarks);
@@ -260,7 +260,7 @@ impl App {
         ui.add_space(8.0);
         let list = self.bookmarks.get(&w.id).cloned().unwrap_or_default();
         if list.is_empty() {
-            ui.label(egui::RichText::new("Notes and bookmarks you add show up here and as dots on the seek bar.").size(13.5).color(muted()));
+            ui.label(egui::RichText::new(tr("Notes and bookmarks you add show up here and as dots on the seek bar.")).size(13.5).color(muted()));
             return;
         }
         let mut seek: Option<f64> = None;
@@ -328,20 +328,20 @@ impl App {
         ui.add_space(8.0);
         let Some(w) = self.watching.clone() else { return };
         if self.player.is_live() {
-            ui.label(egui::RichText::new("Live streams can't be clipped.").color(muted()));
+            ui.label(egui::RichText::new(tr("Live streams can't be clipped.")).color(muted()));
             return;
         }
         if self.clip.vid != w.id {
             self.open_clip_tab();
         }
         let (pos, dur) = (self.player.position(), self.player.duration().max(1.0));
-        ui.label(egui::RichText::new("Cut a piece out of this video and save it as a file.").size(13.5).color(muted()));
+        ui.label(egui::RichText::new(tr("Cut a piece out of this video and save it as a file.")).size(13.5).color(muted()));
         ui.add_space(10.0);
 
         // chapters: pick a segment instead of finding its start and end by hand
         let chapters = self.player.streams.as_ref().map(|st| st.chapters.clone()).unwrap_or_default();
         if !chapters.is_empty() {
-            ui.label(egui::RichText::new("SEGMENTS").size(11.0).color(muted()).strong());
+            ui.label(egui::RichText::new(tr("SEGMENTS")).size(11.0).color(muted()).strong());
             ui.add_space(4.0);
             let mut pick: Option<(f64, f64, bool)> = None;
             egui::ScrollArea::vertical().id_salt("clip_segments").max_height(190.0).auto_shrink([false, true]).show(ui, |ui| {
@@ -361,7 +361,7 @@ impl App {
                     let btn = Rect::from_center_size(Pos2::new(r.max.x - 34.0, r.center().y), vec2(60.0, 24.0));
                     let bresp = ui.interact(btn, resp.id.with("save"), Sense::click()).on_hover_cursor(egui::CursorIcon::PointingHand);
                     ui.painter().rect_filled(btn, CornerRadius::same(12), if bresp.hovered() { accent2() } else { accent() });
-                    ui.painter().text(btn.center(), Align2::CENTER_CENTER, "Clip", FontId::proportional(12.5), ON_ACCENT);
+                    ui.painter().text(btn.center(), Align2::CENTER_CENTER, tr("Clip"), FontId::proportional(12.5), ON_ACCENT);
                     let time = format!("{} – {}", fmt_time(c.start), fmt_time(end));
                     ui.painter().text(Pos2::new(r.min.x + 10.0, r.center().y), Align2::LEFT_CENTER, &time, FontId::monospace(11.5), muted());
                     let tx = r.min.x + 10.0 + 11.0 * time.chars().count() as f32 * 0.62 + 12.0;
@@ -419,7 +419,7 @@ impl App {
 
         for which in 0..2 {
             ui.horizontal(|ui| {
-                ui.add_sized([46.0, 30.0], egui::Label::new(egui::RichText::new(if which == 0 { "Start" } else { "End" }).size(14.0).color(muted())));
+                ui.add_sized([46.0, 30.0], egui::Label::new(egui::RichText::new(tr(if which == 0 { "Start" } else { "End" })).size(14.0).color(muted())));
                 let txt = if which == 0 { &mut self.clip.start_txt } else { &mut self.clip.end_txt };
                 let r = ui.add(egui::TextEdit::singleline(txt).desired_width(86.0));
                 if r.lost_focus() {
@@ -434,7 +434,7 @@ impl App {
                     self.clip.start_txt = fmt_time(self.clip.start);
                     self.clip.end_txt = fmt_time(self.clip.end);
                 }
-                if ui.button(format!("Use {}", fmt_time(pos))).clicked() {
+                if ui.button(trf("Use {time}", &[("time", &fmt_time(pos))])).clicked() {
                     if which == 0 {
                         self.clip.start = pos.min(self.clip.end - 0.5).max(0.0);
                     } else {
@@ -446,17 +446,17 @@ impl App {
             });
         }
         let len = self.clip.end - self.clip.start;
-        ui.label(egui::RichText::new(format!("Length {}", fmt_time(len))).size(13.0).color(muted()));
+        ui.label(egui::RichText::new(trf("Length {time}", &[("time", &fmt_time(len))])).size(13.0).color(muted()));
         ui.add_space(8.0);
         ui.horizontal(|ui| {
-            for (label, v) in [("Video", 0u8), ("Audio", 1), ("GIF", 2)] {
-                if pill_button(ui, label, self.clip.format == v) {
+            for (label, v) in [(tr("Video"), 0u8), (tr("Audio"), 1), (tr("GIF"), 2)] {
+                if pill_button(ui, &label, self.clip.format == v) {
                     self.clip.format = v;
                 }
             }
         });
         if self.clip.format == 2 && len > 20.0 {
-            ui.label(egui::RichText::new("GIFs get big fast; 20 seconds or less works best.").size(12.5).color(muted()));
+            ui.label(egui::RichText::new(tr("GIFs get big fast; 20 seconds or less works best.")).size(12.5).color(muted()));
         }
         ui.add_space(10.0);
         ui.horizontal(|ui| {
@@ -469,7 +469,7 @@ impl App {
             }
             if self.clip.busy.is_some() {
                 // progress is drawn below, on its own row
-            } else if ui.add(egui::Button::new(egui::RichText::new("Save clip").color(ON_ACCENT).strong()).fill(accent())).clicked() {
+            } else if ui.add(egui::Button::new(egui::RichText::new(tr("Save clip")).color(ON_ACCENT).strong()).fill(accent())).clicked() {
                 self.start_clip();
             }
         });
@@ -494,14 +494,14 @@ impl App {
             let secs = self.clip.since.map_or(0.0, |t| t.elapsed().as_secs_f64());
             let label = if self.clip.started && target > 0.03 {
                 let left = secs * (1.0 - target as f64) / target as f64;
-                format!("Cutting…  {}%   •   about {} left", (self.clip.shown * 100.0).round() as u32, fmt_time(left.max(1.0)))
+                trf("Cutting…  {percent}%   •   about {time} left", &[("percent", &((self.clip.shown * 100.0).round() as u32).to_string()), ("time", &fmt_time(left.max(1.0)))])
             } else {
-                "Opening the video…".to_string()
+                tr("Opening the video…")
             };
             ui.horizontal(|ui| {
                 ui.label(egui::RichText::new(label).size(13.0).color(muted()));
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if ui.add(egui::Button::new(egui::RichText::new("Cancel").color(Color32::WHITE)).fill(LIVE)).clicked() {
+                    if ui.add(egui::Button::new(egui::RichText::new(tr("Cancel")).color(Color32::WHITE)).fill(LIVE)).clicked() {
                         self.clip.cancel.store(true, std::sync::atomic::Ordering::SeqCst);
                     }
                 });
@@ -515,19 +515,19 @@ impl App {
         let mine: Vec<ClipEntry> = self.clips.iter().filter(|c| c.video.id == w.id).cloned().collect();
         if !mine.is_empty() {
             ui.add_space(14.0);
-            ui.label(egui::RichText::new("CLIPS OF THIS VIDEO").size(11.0).color(muted()).strong());
+            ui.label(egui::RichText::new(tr("CLIPS OF THIS VIDEO")).size(11.0).color(muted()).strong());
             let mut play: Option<String> = None;
             let mut del: Option<String> = None;
             for c in &mine {
                 let (r, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 38.0), Sense::click());
-                let resp = resp.on_hover_cursor(egui::CursorIcon::PointingHand).on_hover_text("Play this clip");
+                let resp = resp.on_hover_cursor(egui::CursorIcon::PointingHand).on_hover_text(tr("Play this clip"));
                 if resp.hovered() {
                     ui.painter().rect_filled(r, CornerRadius::same(10), ov(16));
                 }
                 ui.painter().text(
                     Pos2::new(r.min.x + 8.0, r.center().y),
                     Align2::LEFT_CENTER,
-                    format!("{} – {}   {}", fmt_time(c.start), fmt_time(c.end), c.kind()),
+                    trf("{start} – {end}   {kind}", &[("start", &fmt_time(c.start)), ("end", &fmt_time(c.end)), ("kind", &tr(c.kind()))]),
                     FontId::proportional(13.5),
                     ink(),
                 );
@@ -547,7 +547,7 @@ impl App {
         }
         if let Some(p) = self.clip.last.clone() {
             ui.add_space(8.0);
-            ui.label(egui::RichText::new(format!("Saved {}", p.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default())).size(13.0).color(muted()));
+            ui.label(egui::RichText::new(trf("Saved {name}", &[("name", &p.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default())])).size(13.0).color(muted()));
             let mut play_here = false;
             ui.horizontal(|ui| {
                 if ui.button(tr("Play")).clicked() {
@@ -656,7 +656,7 @@ impl App {
     pub fn clips_view(&mut self, ui: &mut egui::Ui) {
         ui.add_space(8.0);
         ui.horizontal(|ui| {
-            ui.label(egui::RichText::new("Clips").size(26.0).strong());
+            ui.label(egui::RichText::new(tr("Clips")).size(26.0).strong());
             ui.label(egui::RichText::new(clip::dir().display().to_string()).size(12.0).color(muted()));
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 if ui.button(tr("Open folder")).clicked() {
@@ -670,8 +670,8 @@ impl App {
         if self.clips.is_empty() {
             ui.add_space(60.0);
             ui.vertical_centered(|ui| {
-                ui.label(egui::RichText::new("No clips yet.").size(18.0).color(muted()));
-                ui.label(egui::RichText::new("Open a video, choose the Clip tab (or “Clip this moment…” in the … menu) and save a section.").color(muted()));
+                ui.label(egui::RichText::new(tr("No clips yet.")).size(18.0).color(muted()));
+                ui.label(egui::RichText::new(tr("Open a video, choose the Clip tab (or “Clip this moment…” in the … menu) and save a section.")).color(muted()));
             });
             return;
         }
@@ -700,7 +700,7 @@ impl App {
                         // kind badge, length, and the delete button that appears on hover
                         let badge = Rect::from_min_size(img.min + vec2(7.0, 7.0), vec2(46.0, 18.0));
                         ui.painter().rect_filled(badge, CornerRadius::same(6), Color32::from_black_alpha(190));
-                        ui.painter().text(badge.center(), Align2::CENTER_CENTER, c.kind(), FontId::proportional(11.0), Color32::WHITE);
+                        ui.painter().text(badge.center(), Align2::CENTER_CENTER, tr(c.kind()), FontId::proportional(11.0), Color32::WHITE);
                         if c.end > c.start {
                             views::pill_label(ui, img.right_bottom(), &fmt_time(c.end - c.start));
                         }
@@ -752,7 +752,7 @@ impl App {
                 }
                 let badge = Rect::from_min_size(th_r.min + vec2(6.0, 6.0), vec2(46.0, 18.0));
                 ui.painter().rect_filled(badge, CornerRadius::same(6), Color32::from_black_alpha(190));
-                ui.painter().text(badge.center(), Align2::CENTER_CENTER, c.kind(), FontId::proportional(11.0), Color32::WHITE);
+                        ui.painter().text(badge.center(), Align2::CENTER_CENTER, tr(c.kind()), FontId::proportional(11.0), Color32::WHITE);
                 let tx = th_r.max.x + 14.0;
                 let size = std::fs::metadata(&c.file).map(|m| m.len()).unwrap_or(0);
                 let title = truncate(ui, &c.video.title, FontId::proportional(16.0), w - 400.0, 1);
@@ -781,7 +781,7 @@ impl App {
                 let has_source = !c.video.id.is_empty();
                 if has_source {
                     ui.painter().rect_filled(sr, CornerRadius::same(16), if over_s { accent() } else { card_hi() });
-                    ui.painter().text(sr.center(), Align2::CENTER_CENTER, "Source video", FontId::proportional(13.0), if over_s { ON_ACCENT } else { ink() });
+                    ui.painter().text(sr.center(), Align2::CENTER_CENTER, tr("Source video"), FontId::proportional(13.0), if over_s { ON_ACCENT } else { ink() });
                 }
                 let over_s = over_s && has_source;
                 if over_x || over_s {

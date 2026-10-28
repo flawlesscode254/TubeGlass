@@ -306,7 +306,7 @@ impl App {
             return;
         }
         let (tx, ctx, name) = (self.tx.clone(), self.ctx.clone(), v.channel_name.clone());
-        self.toast(format!("Opening {name}…"));
+        self.toast(trf("Opening {name}…", &[("name", &name)]));
         std::thread::spawn(move || {
             let r = yt::search_channels(&name).and_then(|hits| {
                 hits.into_iter()
