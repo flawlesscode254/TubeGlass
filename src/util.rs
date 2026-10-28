@@ -18,12 +18,17 @@ pub(crate) fn now_secs() -> u64 {
 
 /// "5 min ago" style text for a unix time.
 pub(crate) fn ago(ts: u64) -> String {
-    let d = now_secs().saturating_sub(ts);
+    ago_at(ts, now_secs())
+}
+
+/// Format a relative age with an explicit clock, including future timestamps.
+pub(crate) fn ago_at(ts: u64, now: u64) -> String {
+    let d = now.saturating_sub(ts);
     match d {
-        0..=59 => "just now".into(),
-        60..=3599 => format!("{} min ago", d / 60),
-        3600..=86399 => format!("{} h ago", d / 3600),
-        _ => format!("{} d ago", d / 86400),
+        0..=59 => tr("just now"),
+        60..=3599 => trf("{count} min ago", &[("count", &(d / 60).to_string())]),
+        3600..=86399 => trf("{count} h ago", &[("count", &(d / 3600).to_string())]),
+        _ => trf("{count} d ago", &[("count", &(d / 86400).to_string())]),
     }
 }
 

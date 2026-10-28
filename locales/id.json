@@ -545,5 +545,9 @@
   "● {seconds}s behind": "● terlambat {seconds} dtk",
   "● {minutes}m {seconds}s behind": "● terlambat {minutes}m {seconds} dtk",
   "Jump to the live broadcast": "Lompat ke siaran langsung",
-  "Go live": "Ke siaran langsung"
+  "Go live": "Ke siaran langsung",
+  "just now": "baru saja",
+  "{count} min ago": "{count} mnt lalu",
+  "{count} h ago": "{count} jam lalu",
+  "{count} d ago": "{count} hari lalu"
 }

@@ -545,5 +545,9 @@
   "● {seconds}s behind": "● {seconds}s behind",
   "● {minutes}m {seconds}s behind": "● {minutes}m {seconds}s behind",
   "Jump to the live broadcast": "Jump to the live broadcast",
-  "Go live": "Go live"
+  "Go live": "Go live",
+  "just now": "just now",
+  "{count} min ago": "{count} min ago",
+  "{count} h ago": "{count} h ago",
+  "{count} d ago": "{count} d ago"
 }

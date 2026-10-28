@@ -16,6 +16,7 @@
 mod app;
 mod data;
 mod library;
+mod locale_format;
 mod platform;
 mod playback;
 mod ui;

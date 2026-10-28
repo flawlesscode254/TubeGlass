@@ -1,0 +1,94 @@
+[
+  {
+    "text": "plain text",
+    "names": []
+  },
+  {
+    "text": "Teks {count}",
+    "names": [
+      "count"
+    ]
+  },
+  {
+    "text": "{second} {first} {second}",
+    "names": [
+      "first",
+      "second",
+      "second"
+    ]
+  },
+  {
+    "text": "{_name2}",
+    "names": [
+      "_name2"
+    ]
+  },
+  {
+    "text": "é {count}",
+    "names": [
+      "count"
+    ]
+  },
+  {
+    "text": "{{count}}",
+    "names": []
+  },
+  {
+    "text": "{{{count}}}",
+    "names": [
+      "count"
+    ]
+  },
+  {
+    "text": "{{ and }}",
+    "names": []
+  },
+  {
+    "text": "{count} {",
+    "names": null
+  },
+  {
+    "text": "Paramètres {oops",
+    "names": null
+  },
+  {
+    "text": "{count}}",
+    "names": null
+  },
+  {
+    "text": "}",
+    "names": null
+  },
+  {
+    "text": "{",
+    "names": null
+  },
+  {
+    "text": "{}",
+    "names": null
+  },
+  {
+    "text": "{count",
+    "names": null
+  },
+  {
+    "text": "{a{b}}",
+    "names": null
+  },
+  {
+    "text": "{count:02}",
+    "names": null
+  },
+  {
+    "text": "{1}",
+    "names": null
+  },
+  {
+    "text": "{two words}",
+    "names": null
+  },
+  {
+    "text": "{é}",
+    "names": null
+  }
+]

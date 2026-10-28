@@ -98,13 +98,22 @@ pub(crate) fn language_options() -> Vec<(String, String)> {
     options
 }
 
-/// Return a translated UI string, falling back to English (and then to the source text).
-pub(crate) fn tr(key: &str) -> String {
+/// Resolve the raw catalog message before decoding braces or substituting values.
+fn message(key: &str) -> String {
     let language = active_language()
         .read()
         .map(|active| active.clone())
         .unwrap_or_else(|_| "en".to_owned());
     lookup(catalogs(), &language, key)
+}
+
+/// Return translated UI text, decoding literal braces and falling back to English.
+pub(crate) fn tr(key: &str) -> String {
+    let text = message(key);
+    if !text.bytes().any(|byte| matches!(byte, b'{' | b'}')) {
+        return text;
+    }
+    crate::locale_format::render(&text, &[]).unwrap_or(text)
 }
 
 fn lookup(catalogs: &HashMap<String, HashMap<String, String>>, language: &str, key: &str) -> String {
@@ -124,8 +133,9 @@ fn lookup(catalogs: &HashMap<String, HashMap<String, String>>, language: &str, k
 
 /// Translate a string and substitute named values after lookup, so catalog text stays external.
 pub(crate) fn trf(key: &str, values: &[(&str, &str)]) -> String {
-    values.iter().fold(tr(key), |text, (name, value)| {
-        text.replace(&format!("{{{name}}}"), value)
+    crate::locale_format::render(&message(key), values).unwrap_or_else(|_| {
+        let english = lookup(catalogs(), "en", key);
+        crate::locale_format::render(&english, values).unwrap_or(english)
     })
 }
 
@@ -133,25 +143,6 @@ pub(crate) fn trf(key: &str, values: &[(&str, &str)]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    fn placeholders(text: &str) -> Vec<String> {
-        let mut result = Vec::new();
-        let mut chars = text.char_indices().peekable();
-        while let Some((start, ch)) = chars.next() {
-            if ch != '{' {
-                continue;
-            }
-            if chars.peek().is_some_and(|(_, next)| *next == '{') {
-                chars.next();
-                continue;
-            }
-            if let Some((end, _)) = text[start + 1..].char_indices().find(|(_, ch)| *ch == '}') {
-                result.push(text[start + 1..start + 1 + end].to_owned());
-            }
-        }
-        result.sort();
-        result
-    }
 
     #[test]
     fn english_is_complete_and_locales_have_known_keys_and_valid_placeholders() {
@@ -170,8 +161,8 @@ mod tests {
                 }
                 translated += 1;
                 assert_eq!(
-                    placeholders(source),
-                    placeholders(value),
+                    crate::locale_format::placeholder_names(source).unwrap(),
+                    crate::locale_format::placeholder_names(value).unwrap_or_else(|error| panic!("{language}.json for {key:?}: {error}")),
                     "invalid placeholders in {language}.json for {key:?}"
                 );
             }
@@ -183,9 +174,25 @@ mod tests {
     fn unsupported_and_regional_languages_fall_back_safely() {
         set_language("en");
         assert_eq!(trf("{count} items", &[("count", "2")]), "2 items");
+        let escaped = ["{{", "count", "}}"].concat();
+        assert_eq!(tr(&escaped), "{count}");
+        assert_eq!(trf(&escaped, &[("count", "2")]), "{count}");
+        let now = 1_000_000;
+        let boundaries = [0, 59, 60, 3599, 3600, 86399, 86400];
+        for (seconds, expected) in boundaries.into_iter().zip([
+            "just now", "just now", "1 min ago", "59 min ago", "1 h ago", "23 h ago", "1 d ago",
+        ]) {
+            assert_eq!(crate::util::ago_at(now - seconds, now), expected);
+        }
+        assert_eq!(crate::util::ago_at(now + 60, now), "just now");
         set_language("id-ID");
         assert_eq!(tr("Settings"), "Pengaturan");
         assert_eq!(trf("{count} items", &[("count", "2")]), "2 item");
+        for (seconds, expected) in boundaries.into_iter().zip([
+            "baru saja", "baru saja", "1 mnt lalu", "59 mnt lalu", "1 jam lalu", "23 jam lalu", "1 hari lalu",
+        ]) {
+            assert_eq!(crate::util::ago_at(now - seconds, now), expected);
+        }
         assert_eq!(
             trf(
                 "Everything plays through it. In use: {ffmpeg}",

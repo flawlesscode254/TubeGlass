@@ -11,7 +11,7 @@ from pathlib import Path
 
 
 LANGUAGE_CODE = re.compile(r"[a-z]{2,3}\Z")
-PLACEHOLDER = re.compile(r"(?<!\{)\{([^{}]+)\}(?!\})")
+PLACEHOLDER_NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_]*\Z")
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_LOCALES = ROOT / "locales"
 
@@ -29,7 +29,34 @@ def load_catalog(path: Path) -> dict[str, str]:
 
 
 def placeholder_names(text: str) -> list[str]:
-    return sorted(PLACEHOLDER.findall(text))
+    names = []
+    index = 0
+    while index < len(text):
+        char = text[index]
+        if char == "{":
+            if index + 1 < len(text) and text[index + 1] == "{":
+                index += 2
+                continue
+
+            end = text.find("}", index + 1)
+            if end == -1:
+                raise ValueError("malformed placeholder braces")
+            name = text[index + 1 : end]
+            if "{" in name or not PLACEHOLDER_NAME.fullmatch(name):
+                raise ValueError("malformed placeholder braces")
+            names.append(name)
+            index = end + 1
+            continue
+
+        if char == "}":
+            if index + 1 < len(text) and text[index + 1] == "}":
+                index += 2
+                continue
+            raise ValueError("malformed placeholder braces")
+
+        index += 1
+
+    return sorted(names)
 
 
 def create_locale(code: str, display_name: str, locales_dir: Path = DEFAULT_LOCALES) -> Path:
@@ -57,6 +84,17 @@ def locale_coverage(locales_dir: Path = DEFAULT_LOCALES) -> list[tuple[str, str,
     if not source_keys or any(not english[key].strip() for key in source_keys):
         raise ValueError("locales/en.json must contain a nonempty value for every source key")
 
+    source_placeholder_names = {}
+    for key in source_keys:
+        try:
+            key_names = placeholder_names(key)
+            value_names = placeholder_names(english[key])
+        except ValueError as error:
+            raise ValueError(f"locales/en.json has invalid placeholders for {key!r}") from error
+        if key_names != value_names:
+            raise ValueError(f"locales/en.json has invalid placeholders for {key!r}")
+        source_placeholder_names[key] = key_names
+
     report = []
     for path in sorted(locales_dir.glob("*.json")):
         if path.stem == "en":
@@ -69,7 +107,11 @@ def locale_coverage(locales_dir: Path = DEFAULT_LOCALES) -> list[tuple[str, str,
         for key, value in catalog.items():
             if key == "__language_name" or not value.strip():
                 continue
-            if placeholder_names(english[key]) != placeholder_names(value):
+            try:
+                translation_names = placeholder_names(value)
+            except ValueError as error:
+                raise ValueError(f"{path.name} has invalid placeholders for {key!r}") from error
+            if source_placeholder_names[key] != translation_names:
                 raise ValueError(f"{path.name} has invalid placeholders for {key!r}")
             translated += 1
         name = catalog.get("__language_name", "").strip() or path.stem

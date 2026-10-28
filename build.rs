@@ -1,7 +1,14 @@
-//! Build script: gives the Windows executable its icon. Nothing happens on other systems.
+//! Build script: validates UI catalogs, embeds them, and gives Windows its icon.
+
+#[path = "src/locale_format.rs"]
+mod locale_format;
 
 fn main() {
     println!("cargo:rerun-if-changed=locales");
+    println!("cargo:rerun-if-changed=src/ui");
+    println!("cargo:rerun-if-changed=src/app");
+    println!("cargo:rerun-if-changed=src/util.rs");
+    println!("cargo:rerun-if-changed=src/locale_format.rs");
     generate_locale_manifest();
     println!("cargo:rerun-if-changed=packaging/windows/tubeglass.ico");
     if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("windows") {
@@ -47,7 +54,9 @@ fn validate_catalogs(catalogs: &[std::path::PathBuf]) {
         .map(|path| {
             (
                 path,
-                std::fs::read_to_string(path).expect("read locale catalog"),
+                serde_json::from_str::<std::collections::HashMap<String, String>>(
+                    &std::fs::read_to_string(path).expect("read locale catalog"),
+                ).unwrap_or_else(|error| panic!("invalid catalog {}: {error}", path.display())),
             )
         })
         .collect::<Vec<_>>();
@@ -56,14 +65,28 @@ fn validate_catalogs(catalogs: &[std::path::PathBuf]) {
         .find(|(path, _)| path.file_stem().is_some_and(|stem| stem == "en"))
         .map(|(_, source)| source)
         .expect("locales/en.json is required");
-    let english_keys = json_catalog_keys(english);
-    for (path, source) in &locale_sources {
-        if path.file_stem().is_some_and(|stem| stem == "en") {
-            continue;
-        }
-        for key in json_catalog_keys(source) {
-            if key != "__language_name" && !english_keys.contains(&key) {
-                panic!("{} contains unknown translation key {key:?}", path.display());
+    let english_keys = english.keys().cloned().collect::<std::collections::HashSet<_>>();
+    for (key, value) in english {
+        if key == "__language_name" { continue; }
+        assert!(!value.trim().is_empty(), "English source value is blank for {key:?}");
+        let names = locale_format::placeholder_names(key)
+            .unwrap_or_else(|error| panic!("invalid English source key {key:?}: {error}"));
+        let translated = locale_format::placeholder_names(value)
+            .unwrap_or_else(|error| panic!("invalid English source value for {key:?}: {error}"));
+        assert_eq!(names, translated, "English placeholders differ for {key:?}");
+    }
+    for (path, catalog) in &locale_sources {
+        for (key, value) in catalog {
+            if key == "__language_name" { continue; }
+            let source = english.get(key).unwrap_or_else(|| {
+                panic!("{} contains unknown translation key {key:?}", path.display())
+            });
+            if !value.trim().is_empty() {
+                let expected = locale_format::placeholder_names(source).unwrap();
+                let actual = locale_format::placeholder_names(value).unwrap_or_else(|error| {
+                    panic!("invalid placeholders in {} for {key:?}: {error}", path.display())
+                });
+                assert_eq!(expected, actual, "invalid placeholders in {} for {key:?}", path.display());
             }
         }
     }
@@ -79,6 +102,7 @@ fn validate_catalogs(catalogs: &[std::path::PathBuf]) {
                 .collect::<Vec<_>>()
         })
         .collect::<Vec<_>>();
+    source_files.push(std::path::PathBuf::from("src/util.rs"));
     source_files.sort();
     for source_path in source_files {
         let source = std::fs::read_to_string(&source_path).expect("read UI source file");
@@ -161,7 +185,8 @@ fn validate_catalogs(catalogs: &[std::path::PathBuf]) {
         // A full-text source audit catches app-authored phrases stored in label tables or
         // formatted branches before they reach a widget through a variable. Provider content,
         // operating-system error fragments, and shortcut glyphs are intentionally excluded.
-        if source_path.starts_with("src/ui") && source_path.file_name().is_some_and(|name| name == "i18n.rs") {
+        if source_path == std::path::Path::new("src/util.rs")
+            || (source_path.starts_with("src/ui") && source_path.file_name().is_some_and(|name| name == "i18n.rs")) {
             continue;
         }
         for value in string_literals(&source) {
@@ -178,21 +203,6 @@ fn validate_catalogs(catalogs: &[std::path::PathBuf]) {
             }
         }
     }
-}
-
-fn json_catalog_keys(source: &str) -> std::collections::HashSet<String> {
-    source
-        .lines()
-        .filter_map(|line| {
-            let line = line.trim_start();
-            if !line.starts_with('"') {
-                return None;
-            }
-            line[1..]
-                .find("\":")
-                .map(|end| line[1..end + 1].to_owned())
-        })
-        .collect()
 }
 
 fn string_literals(source: &str) -> Vec<String> {
