@@ -39,14 +39,14 @@ impl App {
             let cards = |v: &[Video]| -> Vec<Card> { v.iter().map(ytmusic::song_card).collect() };
             let mut shelves: Vec<(String, Vec<Card>)> = vec![];
             if !liked.is_empty() {
-                shelves.push(("Liked songs".into(), cards(&liked[..liked.len().min(20)])));
+                shelves.push((tr("Liked songs"), cards(&liked[..liked.len().min(20)])));
             }
             if !artists.is_empty() {
                 let cs = artists
                     .iter()
-                    .map(|a| Card { kind: CardKind::Artist, id: a.id.clone(), title: a.name.clone(), sub: "Following".into(), thumb: a.thumb.clone() })
+                    .map(|a| Card { kind: CardKind::Artist, id: a.id.clone(), title: a.name.clone(), sub: tr("Following"), thumb: a.thumb.clone() })
                     .collect();
-                shelves.push(("Your artists".into(), cs));
+                shelves.push((tr("Your artists"), cs));
                 // newest releases of the followed artists (YouTube lists them newest first)
                 let mut fresh: Vec<(u32, Card)> = vec![];
                 for a in artists.iter().take(10) {
@@ -66,11 +66,11 @@ impl App {
                 fresh.sort_by(|a, b| b.0.cmp(&a.0));
                 let cs: Vec<Card> = fresh.into_iter().map(|(_, c)| c).take(20).collect();
                 if !cs.is_empty() {
-                    shelves.push(("New from artists you follow".into(), cs));
+                    shelves.push((tr("New from artists you follow"), cs));
                 }
             }
             if !recent.is_empty() {
-                shelves.push(("Jump back in".into(), cards(&recent)));
+                shelves.push((tr("Jump back in"), cards(&recent)));
             }
             // radios: seeds are your liked songs first, then what you played lately
             let mut seeds: Vec<&Video> = liked.iter().take(2).collect();
@@ -87,7 +87,7 @@ impl App {
                     r.retain(|v| !recent.iter().any(|x| x.id == v.id) && !liked.iter().any(|x| x.id == v.id));
                     r.truncate(20);
                     if !r.is_empty() {
-                        shelves.push((format!("Because you like {}", seed.title), cards(&r)));
+                        shelves.push((trf("Because you like {title}", &[("title", &seed.title)]), cards(&r)));
                     }
                 }
             }
@@ -165,7 +165,7 @@ impl App {
     /// The Music search box with its suggestions.
     fn music_search_bar(&mut self, ui: &mut egui::Ui) {
         let w = ui.available_width();
-        let f = text_field(ui, &mut self.music_q, "Search songs, albums, artists", w, 46.0, "search", Some("Search"), false);
+        let f = text_field(ui, &mut self.music_q, &tr("Search songs, albums, artists"), w, 46.0, "search", Some(&tr("Search")), false);
         let mut go = f.submit || f.action;
         if f.cleared {
             self.music_active = None;
@@ -314,14 +314,14 @@ impl App {
         ui.add_space(8.0);
         let Some(w) = self.watching.clone() else { return };
         if w.id.starts_with("local:") {
-            ui.label(egui::RichText::new("Lyrics are only looked up for YouTube songs.").color(muted()));
+            ui.label(egui::RichText::new(tr("Lyrics are only looked up for YouTube songs.")).color(muted()));
             return;
         }
         if !w.music && self.lyrics_forced != w.id {
             ui.add_space(16.0);
-            ui.label(egui::RichText::new("This doesn't look like a song, so lyrics are not looked up automatically.").size(14.0).color(muted()));
+            ui.label(egui::RichText::new(tr("This doesn't look like a song, so lyrics are not looked up automatically.")).size(14.0).color(muted()));
             ui.add_space(8.0);
-            if ui.button("Look up lyrics anyway").clicked() {
+            if ui.button(tr("Look up lyrics anyway")).clicked() {
                 self.lyrics_forced = w.id.clone();
             }
             return;
@@ -385,7 +385,7 @@ impl App {
                         ui.add_space(8.0);
                     }
                     ui.add_space(20.0);
-                    ui.label(egui::RichText::new(format!("Lyrics: {}", l.source)).size(11.0).color(muted()));
+                ui.label(egui::RichText::new(trf("Lyrics: {source}", &[("source", &l.source)])).size(11.0).color(muted()));
                 });
                 if l.synced {
                     ui.ctx().request_repaint_after(Duration::from_millis(120));
@@ -405,7 +405,7 @@ impl App {
         ui.horizontal(|ui| {
             if self.can_go_back() {
                 let (r, resp) = ui.allocate_exact_size(vec2(46.0, 46.0), Sense::click());
-                let resp = resp.on_hover_cursor(egui::CursorIcon::PointingHand).on_hover_text("Back  (Alt+←)");
+                let resp = resp.on_hover_cursor(egui::CursorIcon::PointingHand).on_hover_text(tr("Back  (Alt+←)"));
                 let hv = ui.ctx().animate_bool_with_time(resp.id, resp.hovered(), 0.12);
                 ui.painter().add(surface::capsule(r, 1.0, if hv > 0.05 { Some(accent()) } else { None }, false));
                 icons::draw(ui.painter(), r.center(), "arrow_left", 19.0, if hv > 0.5 { accent() } else { ink() });
@@ -433,10 +433,10 @@ impl App {
             // result tabs
             ui.horizontal(|ui| {
                 for (k, l) in [
-                    (SearchKind::Songs, "Songs"),
-                    (SearchKind::Albums, "Albums"),
-                    (SearchKind::Artists, "Artists"),
-                    (SearchKind::Playlists, "Playlists"),
+                    (SearchKind::Songs, tr("Songs")),
+                    (SearchKind::Albums, tr("Albums")),
+                    (SearchKind::Artists, tr("Artists")),
+                    (SearchKind::Playlists, tr("Playlists")),
                 ] {
                     let on = kind == k;
                     let b = egui::Button::new(egui::RichText::new(l).color(if on { ON_ACCENT } else { ink() }))
@@ -457,7 +457,7 @@ impl App {
                     });
                 }
                 Some((rq, rk, Err(e))) if *rq == q && *rk == kind => {
-                    ui.colored_label(LIVE, format!("Search failed: {e}"));
+                    ui.colored_label(LIVE, trf("Search failed: {error}", &[("error", e)]));
                 }
                 Some((rq, rk, Ok(res))) if *rq == q && *rk == kind => {
                     egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
@@ -467,7 +467,7 @@ impl App {
                             card_grid(ui, &res.cards, &mut open);
                         }
                         if res.songs.is_empty() && res.cards.is_empty() {
-                            ui.label(egui::RichText::new("Nothing found.").color(muted()));
+                            ui.label(egui::RichText::new(tr("Nothing found.")).color(muted()));
                         }
                     });
                 }
@@ -482,18 +482,18 @@ impl App {
                     });
                 }
                 Some(Err(e)) => {
-                    ui.colored_label(LIVE, format!("Could not load YouTube Music: {e}"));
+                    ui.colored_label(LIVE, trf("Could not load YouTube Music: {error}", &[("error", e)]));
                 }
                 Some(Ok(page)) => {
                     egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
-                        ui.label(egui::RichText::new("YouTube Music").size(26.0).strong());
+                        ui.label(egui::RichText::new(tr("YouTube Music")).size(26.0).strong());
                         ui.add_space(6.0);
                         for (title, cards) in self.for_you.iter().flatten() {
                             shelf(ui, title, cards, &mut open, &mut play);
                         }
                         if self.for_you.as_ref().is_some_and(|f| f.is_empty()) {
                             ui.label(
-                                egui::RichText::new("Play some songs and your own picks will appear here.")
+                                egui::RichText::new(tr("Play some songs and your own picks will appear here."))
                                     .size(13.0)
                                     .color(muted()),
                             );
@@ -527,7 +527,7 @@ impl App {
                 });
             }
             Some(Err(e)) => {
-                ui.colored_label(LIVE, format!("Could not load: {e}"));
+                    ui.colored_label(LIVE, trf("Could not load: {error}", &[("error", e)]));
             }
             Some(Ok(page)) => {
                 egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
@@ -549,18 +549,19 @@ impl App {
                             ui.add_space(10.0);
                             if !page.tracks.is_empty() {
                                 ui.horizontal_wrapped(|ui| {
-                                    if icon_btn(ui, "play", "Play", Some(accent()), ON_ACCENT, false, true).clicked() {
+                                    if icon_btn(ui, "play",&tr("Play"), Some(accent()), ON_ACCENT, false, true).clicked() {
                                         play_all = Some(false);
                                     }
-                                    if icon_btn(ui, "shuffle", "Shuffle", None, ink(), false, true).clicked() {
+                                    if icon_btn(ui, "shuffle",&tr("Shuffle"), None, ink(), false, true).clicked() {
                                         play_all = Some(true);
                                     }
                                     if is_artist {
                                         let following = self.followed.iter().any(|a| a.id == id);
+                                        let follow_label = tr(if following { "Following" } else { "Follow" });
                                         let fb = icon_btn(
                                             ui,
                                             if following { "check" } else { "plus" },
-                                            if following { "Following" } else { "Follow" },
+                                            &follow_label,
                                             Some(if following { card_hi() } else { accent() }),
                                             if following { ink() } else { ON_ACCENT },
                                             false,
@@ -572,7 +573,7 @@ impl App {
                                     }
                                     let have = self.offline_count(&page.tracks);
                                     let all = have == page.tracks.len();
-                                    let label = if all { "Downloaded".to_string() } else { format!("Download  ({have}/{})", page.tracks.len()) };
+                                    let label = if all { tr("Downloaded") } else { trf("Download  ({downloaded}/{total})", &[("downloaded", &have.to_string()), ("total", &page.tracks.len().to_string())]) };
                                     if icon_btn(ui, if all { "check" } else { "download" }, &label, None, ink(), false, !all).clicked() {
                                         download_page = true;
                                     }
@@ -583,7 +584,7 @@ impl App {
                     ui.add_space(14.0);
                     if !page.tracks.is_empty() {
                         if is_artist {
-                            ui.label(egui::RichText::new("Songs").size(18.0).strong());
+                            ui.label(egui::RichText::new(tr("Songs")).size(18.0).strong());
                             ui.add_space(4.0);
                         }
                         song_rows(ui, &page.tracks, &self.lists, &mut act, &mut play);
@@ -610,11 +611,11 @@ impl App {
             match self.followed.iter().position(|a| a.id == id) {
                 Some(i) => {
                     self.followed.remove(i);
-                    self.toast(format!("Unfollowed {name}"));
+                    self.toast(trf("Unfollowed {name}", &[("name", &name)]));
                 }
                 None => {
                     self.followed.push(FollowedArtist { id: id.to_string(), name: name.clone(), thumb });
-                    self.toast(format!("Following {name}"));
+                    self.toast(trf("Following {name}", &[("name", &name)]));
                 }
             }
             save_followed(&self.followed);
@@ -704,15 +705,15 @@ fn song_rows(
             }
         }
         resp.context_menu(|ui| {
-            if ui.button("Play next").clicked() {
+            if ui.button(tr("Play next")).clicked() {
                 *act = Some((v.clone(), MAct::PlayNext));
                 ui.close();
             }
-            if ui.button("Add to queue").clicked() {
+            if ui.button(tr("Add to queue")).clicked() {
                 *act = Some((v.clone(), MAct::Queue));
                 ui.close();
             }
-            ui.menu_button("Add to playlist", |ui| {
+            ui.menu_button(tr("Add to playlist"), |ui| {
                 for l in lists {
                     let has = l.videos.iter().any(|x| x.id == v.id);
                     if ui.selectable_label(has, l.name.clone()).clicked() {

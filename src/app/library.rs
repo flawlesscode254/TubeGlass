@@ -30,12 +30,12 @@ impl App {
             CardAction::NotInterested => {
                 self.settings.hidden.insert(v.id.clone());
                 self.save_settings();
-                self.toast("Hidden from your recommendations");
+                self.toast(tr("Hidden from your recommendations"));
             }
             CardAction::FewerFromChannel => {
                 self.settings.chan_prefs.entry(v.channel_id.clone()).or_default().fewer = true;
                 self.save_settings();
-                self.toast(format!("You'll see less from {}", v.channel_name));
+                self.toast(trf("You'll see less from {channel}", &[("channel", &v.channel_name)]));
             }
             CardAction::PlayNext => self.queue_add(QItem::Yt(v), true),
             CardAction::AddToQueue => self.queue_add(QItem::Yt(v), false),
@@ -245,7 +245,7 @@ impl App {
             .collect();
         self.lists.push(LocalList { id: id.clone(), name: name.clone(), videos, offline: false });
         save_lists(&self.lists);
-        self.toast(format!("Saved “{name}” with {n} videos"));
+        self.toast(trf("Saved “{name}” with {count} videos", &[("name", &name), ("count", &n.to_string())]));
         self.sel = Sel::Local(id);
     }
 }

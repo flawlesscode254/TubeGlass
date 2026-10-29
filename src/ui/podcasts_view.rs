@@ -8,19 +8,19 @@ use crate::podcasts::Saved;
 pub(crate) fn ep_menu(resp: &egui::Response, saved: bool, prog: Option<f32>, is_new: bool) -> Option<EpAct> {
     let mut act = None;
     resp.context_menu(|ui| {
-        if ui.button("Play next").clicked() {
+        if ui.button(tr("Play next")).clicked() {
             act = Some(EpAct::Next);
             ui.close();
         }
-        if ui.button("Add to queue").clicked() {
+        if ui.button(tr("Add to queue")).clicked() {
             act = Some(EpAct::Queue);
             ui.close();
         }
-        if !saved && prog.is_none() && ui.button("Download").clicked() {
+        if !saved && prog.is_none() && ui.button(tr("Download")).clicked() {
             act = Some(EpAct::Download);
             ui.close();
         }
-        if is_new && ui.button("Mark as played").clicked() {
+        if is_new && ui.button(tr("Mark as played")).clicked() {
             act = Some(EpAct::Seen);
             ui.close();
         }
@@ -67,7 +67,7 @@ impl App {
         if is_new {
             let b = Rect::from_min_size(img.min + vec2(7.0, 7.0), vec2(38.0, 17.0));
             ui.painter().rect_filled(b, CornerRadius::same(5), accent());
-            ui.painter().text(b.center(), Align2::CENTER_CENTER, "NEW", FontId::proportional(10.5), ON_ACCENT);
+            ui.painter().text(b.center(), Align2::CENTER_CENTER, tr("NEW"), FontId::proportional(10.5), ON_ACCENT);
         }
         if let Some(h) = hist.filter(|h| h.duration > 0.0 && h.position > 5.0) {
             let f = (h.position / h.duration).clamp(0.0, 1.0) as f32;
@@ -157,7 +157,7 @@ impl App {
         if is_new {
             let b = Rect::from_min_size(Pos2::new(th_r.min.x + 4.0, th_r.min.y + 4.0), vec2(38.0, 17.0));
             ui.painter().rect_filled(b, CornerRadius::same(5), accent());
-            ui.painter().text(b.center(), Align2::CENTER_CENTER, "NEW", FontId::proportional(10.5), ON_ACCENT);
+            ui.painter().text(b.center(), Align2::CENTER_CENTER, tr("NEW"), FontId::proportional(10.5), ON_ACCENT);
         }
         let title = truncate(ui, &e.title, FontId::proportional(15.5), w - (tx - rect.min.x) - right, 2);
         ui.painter().text(Pos2::new(tx, rect.min.y + 10.0), Align2::LEFT_TOP, title, FontId::proportional(15.5), ink());
@@ -250,7 +250,7 @@ impl App {
         ui.horizontal(|ui| {
             if self.can_go_back() {
                 let (r, resp) = ui.allocate_exact_size(vec2(46.0, 46.0), Sense::click());
-                let resp = resp.on_hover_cursor(egui::CursorIcon::PointingHand).on_hover_text("Back  (Alt+←)");
+                let resp = resp.on_hover_cursor(egui::CursorIcon::PointingHand).on_hover_text(tr("Back  (Alt+←)"));
                 let hv = ui.ctx().animate_bool_with_time(resp.id, resp.hovered(), 0.12);
                 ui.painter().add(surface::capsule(r, 1.0, if hv > 0.05 { Some(accent()) } else { None }, false));
                 icons::draw(ui.painter(), r.center(), "arrow_left", 19.0, if hv > 0.5 { accent() } else { ink() });
@@ -258,7 +258,7 @@ impl App {
                 ui.add_space(4.0);
             }
             let w = ui.available_width();
-            let f = text_field(ui, &mut self.pod_input, "Search podcasts, or paste a feed or Apple Podcasts link", w, 46.0, "search", Some("Search"), false);
+            let f = text_field(ui, &mut self.pod_input, &tr("Search podcasts, or paste a feed or Apple Podcasts link"), w, 46.0, "search", Some(&tr("Search")), false);
             go = f.submit || f.action;
             cleared = f.cleared;
         });
@@ -334,7 +334,7 @@ impl App {
                 .corner_radius(CornerRadius::same((side / 2.0) as u8))
                 .paint_at(ui, art);
         }
-        icon_label(ui, Pos2::new(c.x, c.y + big + 20.0), "mic", "Podcast", muted(), false);
+            icon_label(ui, Pos2::new(c.x, c.y + big + 20.0), "mic", &tr("Podcast"), muted(), false);
         ui.ctx().request_repaint();
     }
 
@@ -344,14 +344,14 @@ impl App {
             return;
         }
         ui.horizontal_wrapped(|ui| {
-            ui.label(egui::RichText::new("Podcasts").size(26.0).strong());
+            ui.label(egui::RichText::new(tr("Podcasts")).size(26.0).strong());
             if !self.pod_busy.is_empty() {
                 ui.add(egui::Spinner::new().size(18.0).color(accent()));
             }
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center).with_main_wrap(true), |ui| {
                 if !self.pods.is_empty() {
                     self.view_toggle(ui);
-                    if icon_btn(ui, "refresh", "Refresh", None, ink(), false, true).clicked() {
+                    if icon_btn(ui, "refresh",&tr("Refresh"), None, ink(), false, true).clicked() {
                         self.refresh_all_pods();
                     }
                 }
@@ -370,17 +370,17 @@ impl App {
             let w = ui.available_width() - 6.0;
             // search results
             if let Some((q, res)) = &self.pod_hits {
-                ui.label(egui::RichText::new(format!("RESULTS FOR “{}”", q.to_uppercase())).size(11.0).color(muted()).strong());
+                ui.label(egui::RichText::new(trf("Results for “{query}”", &[("query", &q.to_uppercase())])).size(11.0).color(muted()).strong());
                 match res {
                     None => {
                         ui.add_space(8.0);
                         ui.add(egui::Spinner::new().size(22.0).color(accent()));
                     }
                     Some(Err(e)) => {
-                        ui.colored_label(LIVE, format!("Search failed: {e}"));
+                        ui.colored_label(LIVE, trf("Search failed: {error}", &[("error", e)]));
                     }
                     Some(Ok(hits)) if hits.is_empty() => {
-                        ui.label(egui::RichText::new("No podcasts found.").color(muted()));
+                        ui.label(egui::RichText::new(tr("No podcasts found.")).color(muted()));
                     }
                     Some(Ok(hits)) => {
                         for h in hits {
@@ -403,7 +403,7 @@ impl App {
                             let br = Rect::from_center_size(Pos2::new(rect.max.x - 70.0, rect.center().y), vec2(112.0, 34.0));
                             let bresp = ui.interact(br, resp.id.with("sub"), Sense::click()).on_hover_cursor(egui::CursorIcon::PointingHand);
                             ui.painter().rect_filled(br, CornerRadius::same(17), if have { card_hi() } else if bresp.hovered() { accent2() } else { accent() });
-                            icon_label(ui, br.center(), if have { "check" } else { "plus" }, if have { "Subscribed" } else { "Subscribe" }, if have { ink() } else { ON_ACCENT }, false);
+                            icon_label(ui, br.center(), if have { "check" } else { "plus" }, &tr(if have { "Subscribed" } else { "Subscribe" }), if have { ink() } else { ON_ACCENT }, false);
                             if bresp.clicked() && !have {
                                 subscribe = Some(h.feed.clone());
                             } else if resp.clicked() && have {
@@ -418,14 +418,14 @@ impl App {
             if self.pods.is_empty() && self.pod_hits.is_none() {
                 ui.add_space(50.0);
                 ui.vertical_centered(|ui| {
-                    ui.label(egui::RichText::new("No podcasts yet.").size(18.0).color(muted()));
-                    ui.label(egui::RichText::new("Search above, or paste a podcast's feed address (RSS) or its Apple Podcasts link.").color(muted()));
+                    ui.label(egui::RichText::new(tr("No podcasts yet.")).size(18.0).color(muted()));
+                    ui.label(egui::RichText::new(tr("Search above, or paste a podcast's feed address (RSS) or its Apple Podcasts link.")).color(muted()));
                 });
                 return;
             }
             // your shows
             if !self.pods.is_empty() {
-                ui.label(egui::RichText::new("YOUR SHOWS").size(11.0).color(muted()).strong());
+                ui.label(egui::RichText::new(tr("YOUR SHOWS")).size(11.0).color(muted()).strong());
                 if self.settings.view_mode == 2 {
                     // list: one row per show
                     for p in &self.pods {
@@ -441,14 +441,20 @@ impl App {
                         }
                         let tx = th_r.max.x + 14.0;
                         let t = truncate(ui, &p.show.title, FontId::proportional(16.0), w - 230.0, 1);
-                        let a = truncate(ui, &format!("{}  •  {} episodes", p.show.author, p.episodes.len()), FontId::proportional(13.0), w - 230.0, 1);
+                        let count = p.episodes.len().to_string();
+                        let summary = if p.episodes.len() == 1 {
+                            trf("{author}  •  {count} episode", &[("author", &p.show.author), ("count", &count)])
+                        } else {
+                            trf("{author}  •  {count} episodes", &[("author", &p.show.author), ("count", &count)])
+                        };
+                        let a = truncate(ui, &summary, FontId::proportional(13.0), w - 230.0, 1);
                         ui.painter().text(Pos2::new(tx, rect.center().y - 10.0), Align2::LEFT_CENTER, t, FontId::proportional(16.0), ink());
                         ui.painter().text(Pos2::new(tx, rect.center().y + 11.0), Align2::LEFT_CENTER, a, FontId::proportional(13.0), muted());
                         let n = self.pod_new_count(p);
                         if n > 0 {
                             let b = Rect::from_center_size(Pos2::new(rect.max.x - 60.0, rect.center().y), vec2(78.0, 24.0));
                             ui.painter().rect_filled(b, CornerRadius::same(12), accent());
-                            ui.painter().text(b.center(), Align2::CENTER_CENTER, format!("{n} new"), FontId::proportional(12.5), ON_ACCENT);
+                            ui.painter().text(b.center(), Align2::CENTER_CENTER, trf("{count} new", &[("count", &n.to_string())]), FontId::proportional(12.5), ON_ACCENT);
                         }
                         if resp.clicked() {
                             open = Some(p.show.feed.clone());
@@ -497,7 +503,7 @@ impl App {
                 }
                 // newest episodes of every show
                 ui.add_space(8.0);
-                ui.label(egui::RichText::new("LATEST EPISODES").size(11.0).color(muted()).strong());
+                ui.label(egui::RichText::new(tr("LATEST EPISODES")).size(11.0).color(muted()).strong());
                 let mut all: Vec<(&Saved, &Episode)> = self.pods.iter().flat_map(|p| p.episodes.iter().map(move |e| (p, e))).collect();
                 all.sort_by(|a, b| b.1.published.cmp(&a.1.published));
                 let list: Vec<(&str, &Show, &Episode)> = all.into_iter().take(25).map(|(p, e)| (p.show.feed.as_str(), &p.show, e)).collect();
@@ -525,7 +531,7 @@ impl App {
         }
         let Some(p) = self.pods.iter().find(|p| p.show.feed == feed).cloned() else {
             ui.add_space(40.0);
-            ui.label(egui::RichText::new("You are not subscribed to this show.").color(muted()));
+            ui.label(egui::RichText::new(tr("You are not subscribed to this show.")).color(muted()));
             return;
         };
         ui.add_space(6.0);
@@ -548,23 +554,29 @@ impl App {
                         ui.add(egui::Spinner::new().size(18.0).color(accent()));
                     }
                 });
-                ui.label(egui::RichText::new(format!("{}  •  {} episodes", p.show.author, p.episodes.len())).size(13.5).color(muted()));
+                let count = p.episodes.len().to_string();
+                let summary = if p.episodes.len() == 1 {
+                    trf("{author}  •  {count} episode", &[("author", &p.show.author), ("count", &count)])
+                } else {
+                    trf("{author}  •  {count} episodes", &[("author", &p.show.author), ("count", &count)])
+                };
+                ui.label(egui::RichText::new(summary).size(13.5).color(muted()));
                 let d = truncate(ui, &p.show.description, FontId::proportional(13.5), (ui.available_width() - 20.0).max(240.0), 2);
                 ui.label(egui::RichText::new(d).size(13.5).color(muted()));
                 ui.add_space(4.0);
                 ui.horizontal_wrapped(|ui| {
                     self.view_toggle(ui);
-                    if icon_btn(ui, "play", "Play latest", Some(accent()), ON_ACCENT, false, true).clicked() {
+                    if icon_btn(ui, "play",&tr("Play latest"), Some(accent()), ON_ACCENT, false, true).clicked() {
                         play_latest = true;
                     }
-                    if icon_btn(ui, "refresh", "Refresh", None, ink(), false, true).clicked() {
+                    if icon_btn(ui, "refresh",&tr("Refresh"), None, ink(), false, true).clicked() {
                         refresh = true;
                     }
-                    if self.pod_new_count(&p) > 0 && icon_btn(ui, "check", "Mark all as played", None, ink(), false, true).clicked() {
+                    if self.pod_new_count(&p) > 0 && icon_btn(ui, "check",&tr("Mark all as played"), None, ink(), false, true).clicked() {
                         mark_all = true;
                     }
-                    let label = if self.pod_unsub_confirm { "Confirm unsubscribe" } else { "Unsubscribe" };
-                    let b = icon_btn(ui, "", label, if self.pod_unsub_confirm { Some(LIVE) } else { None }, if self.pod_unsub_confirm { Color32::WHITE } else { ink() }, false, true);
+                    let label = tr(if self.pod_unsub_confirm { "Confirm unsubscribe" } else { "Unsubscribe" });
+                    let b = icon_btn(ui, "", &label, if self.pod_unsub_confirm { Some(LIVE) } else { None }, if self.pod_unsub_confirm { Color32::WHITE } else { ink() }, false, true);
                     if b.clicked() {
                         if self.pod_unsub_confirm {
                             unsub = true;
@@ -592,7 +604,7 @@ impl App {
             }
             if shown < p.episodes.len() {
                 ui.add_space(6.0);
-                ui.vertical_centered(|ui| ui.label(egui::RichText::new(format!("Showing {shown} of {} episodes", p.episodes.len())).size(12.5).color(muted())));
+                ui.vertical_centered(|ui| ui.label(egui::RichText::new(trf("Showing {shown} of {total} episodes", &[("shown", &shown.to_string()), ("total", &p.episodes.len().to_string())])).size(12.5).color(muted())));
                 ui.add_space(20.0);
             }
         });

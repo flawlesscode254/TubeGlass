@@ -24,6 +24,9 @@ serde_json = "1.0.154"
 sha2 = "0.11.1"
 ureq = { version = "3.4.2", features = ["json"] }
 
+[build-dependencies]
+serde_json = "1.0.154"
+
 # media keys and "now playing" over D-Bus exist on Linux only
 [target.'cfg(target_os = "linux")'.dependencies]
 zbus = "5.19.0"

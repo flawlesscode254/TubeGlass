@@ -39,13 +39,13 @@ pub(crate) fn video_card(ui: &mut egui::Ui, rect: Rect, th: f32, v: &Video, info
             p.rect_filled(b, CornerRadius::same(6), LIVE);
             let pulse = 0.55 + 0.45 * (ui.input(|i| i.time) * 3.0).sin().abs() as f32;
             p.circle_filled(b.left_center() + vec2(12.0, 0.0), 4.0, Color32::WHITE.gamma_multiply(pulse));
-            p.text(b.center() + vec2(7.0, 0.0), Align2::CENTER_CENTER, "LIVE", FontId::proportional(12.0), Color32::WHITE);
+            p.text(b.center() + vec2(7.0, 0.0), Align2::CENTER_CENTER, tr("LIVE"), FontId::proportional(12.0), Color32::WHITE);
             ui.ctx().request_repaint_after(Duration::from_millis(33));
         }
         Kind::Upcoming => {
             let b = Rect::from_min_size(img.min + vec2(8.0, 8.0), vec2(88.0, 22.0));
             p.rect_filled(b, CornerRadius::same(6), accent());
-            p.text(b.center(), Align2::CENTER_CENTER, "UPCOMING", FontId::proportional(12.0), ON_ACCENT);
+            p.text(b.center(), Align2::CENTER_CENTER, tr("UPCOMING"), FontId::proportional(12.0), ON_ACCENT);
         }
         Kind::Video if !v.duration.is_empty() => {
             let g = ui.fonts_mut(|f| f.layout_no_wrap(v.duration.clone(), FontId::proportional(12.0), Color32::WHITE));
@@ -68,7 +68,7 @@ pub(crate) fn video_card(ui: &mut egui::Ui, rect: Rect, th: f32, v: &Video, info
     if info.is_new {
         let b = Rect::from_min_size(Pos2::new(img.max.x - 52.0, img.min.y + 8.0), vec2(44.0, 20.0));
         p.rect_filled(b, CornerRadius::same(6), accent());
-        p.text(b.center(), Align2::CENTER_CENTER, "NEW", FontId::proportional(11.0), ON_ACCENT);
+        p.text(b.center(), Align2::CENTER_CENTER, tr("NEW"), FontId::proportional(11.0), ON_ACCENT);
     }
     if let Some(wf) = info.watched {
         let pp = ui.painter();
@@ -109,26 +109,26 @@ pub(crate) fn video_card(ui: &mut egui::Ui, rect: Rect, th: f32, v: &Video, info
     let resp = resp.on_hover_cursor(egui::CursorIcon::PointingHand);
     let mut act: Option<CardAction> = None;
     resp.context_menu(|ui| {
-        if ui.button("Play audio only").clicked() {
+        if ui.button(tr("Play audio only")).clicked() {
             act = Some(CardAction::PlayAudio);
             ui.close();
         }
         if v.kind != Kind::Live {
-            if ui.button("Play next").clicked() {
+            if ui.button(tr("Play next")).clicked() {
                 act = Some(CardAction::PlayNext);
                 ui.close();
             }
-            if ui.button("Add to queue").clicked() {
+            if ui.button(tr("Add to queue")).clicked() {
                 act = Some(CardAction::AddToQueue);
                 ui.close();
             }
         }
         if v.kind != Kind::Live {
             if info.video_saved {
-                ui.add_enabled(false, egui::Button::new("Video downloaded"));
+                ui.add_enabled(false, egui::Button::new(tr("Video downloaded")));
             } else {
-                ui.menu_button("Download video", |ui| {
-                    for (label, q) in [("Best available", 2160u32), ("1080p", 1080), ("720p", 720), ("480p", 480), ("360p", 360)] {
+                ui.menu_button(tr("Download video"), |ui| {
+                    for (label, q) in [(tr("Best available"), 2160u32), ("1080p".to_string(), 1080), ("720p".to_string(), 720), ("480p".to_string(), 480), ("360p".to_string(), 360)] {
                         if ui.button(label).clicked() {
                             act = Some(CardAction::Download(false, q));
                             ui.close();
@@ -137,8 +137,8 @@ pub(crate) fn video_card(ui: &mut egui::Ui, rect: Rect, th: f32, v: &Video, info
                 });
             }
             if info.audio_saved {
-                ui.add_enabled(false, egui::Button::new("Audio downloaded"));
-            } else if ui.button("Download audio only").clicked() {
+                ui.add_enabled(false, egui::Button::new(tr("Audio downloaded")));
+            } else if ui.button(tr("Download audio only")).clicked() {
                 act = Some(CardAction::Download(true, 0));
                 ui.close();
             }
@@ -146,12 +146,12 @@ pub(crate) fn video_card(ui: &mut egui::Ui, rect: Rect, th: f32, v: &Video, info
         }
         {
             let in_wl = info.lists.iter().any(|l| l.id == "watchlater" && l.videos.iter().any(|x| x.id == v.id));
-            if ui.button(if in_wl { "Remove from Watch later" } else { "Watch later" }).clicked() {
+            if ui.button(tr(if in_wl { "Remove from Watch later" } else { "Watch later" })).clicked() {
                 act = Some(CardAction::ToggleList("watchlater".into()));
                 ui.close();
             }
         }
-        ui.menu_button("Add to playlist", |ui| {
+        ui.menu_button(tr("Add to playlist"), |ui| {
             for l in info.lists {
                 let has = l.videos.iter().any(|x| x.id == v.id);
                 if ui.selectable_label(has, l.name.clone()).clicked() {
@@ -160,27 +160,27 @@ pub(crate) fn video_card(ui: &mut egui::Ui, rect: Rect, th: f32, v: &Video, info
                 }
             }
             ui.separator();
-            if ui.button("+  New playlist…").clicked() {
+            if ui.button(tr("+  New playlist…")).clicked() {
                 act = Some(CardAction::NewList);
                 ui.close();
             }
         });
         if matches!(v.kind, Kind::Video) && !info.in_history_view {
             ui.separator();
-            if ui.button("Not interested").clicked() {
+            if ui.button(tr("Not interested")).clicked() {
                 act = Some(CardAction::NotInterested);
                 ui.close();
             }
-            if !v.channel_id.is_empty() && ui.button("Recommend less from this channel").clicked() {
+            if !v.channel_id.is_empty() && ui.button(tr("Recommend less from this channel")).clicked() {
                 act = Some(CardAction::FewerFromChannel);
                 ui.close();
             }
         }
-        if info.in_history_view && ui.button("Remove from history").clicked() {
+        if info.in_history_view && ui.button(tr("Remove from history")).clicked() {
             act = Some(CardAction::RemoveFromHistory);
             ui.close();
         }
-        if info.current_list.is_some() && ui.button("Remove from this playlist").clicked() {
+        if info.current_list.is_some() && ui.button(tr("Remove from this playlist")).clicked() {
             act = Some(CardAction::RemoveFromList);
             ui.close();
         }

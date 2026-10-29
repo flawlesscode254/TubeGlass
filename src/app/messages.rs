@@ -31,7 +31,7 @@ impl App {
                             let name = self.channels.iter().find(|c| c.id == id).map(|c| c.name.clone()).unwrap_or_default();
                             for v in new.iter().filter(|v| v.kind == Kind::Video && !known.contains(&v.id)).take(3) {
                                 if self.notified.insert(v.id.clone()) {
-                                    mpris::notify(&format!("New from {name}"), &v.title);
+                                mpris::notify(&trf("New from {name}", &[("name", &name)]), &v.title);
                                 }
                             }
                         }
@@ -109,11 +109,11 @@ impl App {
                                 let lid = format!("pl-{}-{}", now_secs(), self.lists.len());
                                 self.lists.push(LocalList { id: lid, name: name.clone(), videos, offline: false });
                                 save_lists(&self.lists);
-                                self.toast(format!("Imported “{name}” with {n} videos"));
+                                self.toast(trf("Imported “{name}” with {count} videos", &[("name", &name), ("count", &n.to_string())]));
                             }
                         }
-                        Ok(_) => self.toast("That playlist has no videos (or it is private)".to_string()),
-                        Err(e) => self.toast(format!("Could not import {id}: {e}")),
+                        Ok(_) => self.toast(tr("That playlist has no videos (or it is private)")),
+                        Err(e) => self.toast(trf("Could not import {id}: {error}", &[("id", &id), ("error", &e)])),
                     }
                     if left == 0 {
                         self.import_list = None;
@@ -174,7 +174,8 @@ impl App {
                         todo.push(i.key);
                     }
                     save(&self.channels);
-                    self.toast(format!("Imported {added} channel{}", if added == 1 { "" } else { "s" }));
+                    let count = added.to_string();
+                    self.toast(if added == 1 { trf("Imported {count} channel", &[("count", &count)]) } else { trf("Imported {count} channels", &[("count", &count)]) });
                     // resolve names / avatars (and @handles) one by one, gently
                     let (tx, ctx) = (self.tx.clone(), self.ctx.clone());
                     std::thread::spawn(move || {
@@ -193,7 +194,7 @@ impl App {
                             Ok(c) => self.cues = c,
                             Err(e) => {
                                 self.cc_track = None;
-                                self.toast(format!("Captions unavailable: {e}"));
+                                self.toast(trf("Captions unavailable: {error}", &[("error", &e)]));
                             }
                         }
                     }
@@ -243,9 +244,9 @@ impl App {
                 }
                 Msg::OpenChannel(r) => match r {
                     Ok(c) => self.show_channel(c),
-                    Err(e) => self.toast(format!("Could not open the channel: {e}")),
+                    Err(e) => self.toast(trf("Could not open the channel: {error}", &[("error", &e)])),
                 },
-                Msg::ExportedSubs(n) => self.toast(format!("Exported {n} channels")),
+                Msg::ExportedSubs(n) => self.toast(trf("Exported {count} channels", &[("count", &n.to_string())])),
                 Msg::Note(t) => self.toast(t),
                 Msg::Podcast(feed, subscribe, r) => self.apply_podcast(feed, subscribe, r),
                 Msg::PodSearch(q, r) => {
@@ -267,13 +268,13 @@ impl App {
                     self.clip.busy = None;
                     match r {
                         Ok(p) => {
-                            self.toast("Clip saved");
+                            self.toast(tr("Clip saved"));
                             self.clip_finished(p.clone());
                             self.clip.last = Some(p);
                         }
                         Err(e) if e == "cancelled" => {
                             self.clip.pending = None;
-                            self.toast("Clip cancelled");
+                            self.toast(tr("Clip cancelled"));
                         }
                         Err(e) => self.clip.err = Some(e),
                     }
@@ -311,7 +312,7 @@ impl App {
                             self.sel = Sel::Downloads;
                         }
                     } else if !was && up {
-                        self.toast("Back online");
+                        self.toast(tr("Back online"));
                         if matches!(self.ffmpeg, FfmpegState::Failed(_)) && ffmpeg_setup::source_for_this_system().is_some() {
                             self.start_ffmpeg_setup();
                         }
@@ -335,7 +336,7 @@ impl App {
                         apply_settings(&self.settings);
                         self.save_settings();
                         self.library = download::list();
-                        self.toast("Download folder updated");
+                        self.toast(tr("Download folder updated"));
                     }
                 }
                 Msg::Picked(p) => {
@@ -347,7 +348,7 @@ impl App {
                 Msg::LocalProbe(path, r) => match r {
                     Ok((streams, title, artist)) => self.play_file(&path, streams, title, artist),
                     Err(e) => {
-                        self.dl_err = Some(format!("Could not open {path}: {e}"));
+                        self.dl_err = Some(trf("Could not open {path}: {error}", &[("path", &path), ("error", &e)]));
                         self.sel = Sel::Downloads;
                     }
                 },
@@ -372,7 +373,7 @@ impl App {
                                 Some(j) => {
                                     self.dl_tries.remove(&id);
                                     self.dl_gaveup.insert(j.retry.0.id.clone());
-                                    self.toast(format!("Could not download “{}”", j.retry.0.title));
+                                    self.toast(trf("Could not download “{title}”", &[("title", &j.retry.0.title)]));
                                     self.dl_errs.push(format!("{}: {e}", j.retry.0.title));
                                 }
                                 None => self.dl_errs.push(e),

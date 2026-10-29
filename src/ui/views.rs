@@ -35,7 +35,7 @@ pub fn metrics(settings: &Settings, avail: f32, square: bool) -> Metrics {
 /// The three layout icons. Returns true when the choice changed.
 pub fn view_switch(ui: &mut egui::Ui, mode: &mut u8) -> bool {
     let before = *mode;
-    for (icon, m, tip) in [("view_list", 2u8, "List"), ("view_compact", 1, "Compact grid"), ("view_grid", 0, "Grid")] {
+    for (icon, m, tip) in [("view_list", 2u8, tr("List")), ("view_compact", 1, tr("Compact grid")), ("view_grid", 0, tr("Grid"))] {
         let (r, resp) = ui.allocate_exact_size(vec2(34.0, 30.0), Sense::click());
         let resp = resp.on_hover_cursor(egui::CursorIcon::PointingHand).on_hover_text(tip);
         let on = *mode == m;

@@ -17,7 +17,9 @@ pub(crate) fn sidebar_row(
     if compact {
         resp = resp.on_hover_text(label);
     }
-    let h = ui.ctx().animate_bool_with_time(resp.id, resp.hovered(), 0.12);
+    let h = ui
+        .ctx()
+        .animate_bool_with_time(resp.id, resp.hovered(), 0.12);
     let row = rect.shrink2(vec2(0.0, 1.0));
     let p = ui.painter();
     if selected {
@@ -28,7 +30,10 @@ pub(crate) fn sidebar_row(
     let tile = if compact {
         Rect::from_center_size(row.center(), vec2(36.0, 36.0))
     } else {
-        Rect::from_min_size(Pos2::new(row.min.x + 6.0, row.center().y - 18.0), vec2(36.0, 36.0))
+        Rect::from_min_size(
+            Pos2::new(row.min.x + 6.0, row.center().y - 18.0),
+            vec2(36.0, 36.0),
+        )
     };
     match avatar {
         Some(url) if !url.is_empty() => {
@@ -41,7 +46,8 @@ pub(crate) fn sidebar_row(
                     .paint_at(ui, Rect::from_center_size(c, vec2(32.0, 32.0)));
             }
             if selected {
-                ui.painter().circle_stroke(c, 18.0, Stroke::new(2.0, ON_ACCENT));
+                ui.painter()
+                    .circle_stroke(c, 18.0, Stroke::new(2.0, ON_ACCENT));
             }
         }
         _ => {
@@ -51,7 +57,13 @@ pub(crate) fn sidebar_row(
                 ov((12.0 + 14.0 * h) as u8)
             };
             p.rect_filled(tile, CornerRadius::same(11), fill);
-            let col = if selected { ON_ACCENT } else if h > 0.4 { ink() } else { icons::muted_icon() };
+            let col = if selected {
+                ON_ACCENT
+            } else if h > 0.4 {
+                ink()
+            } else {
+                icons::muted_icon()
+            };
             icons::draw(ui.painter(), tile.center(), icon, 20.0, col);
         }
     }
@@ -63,7 +75,11 @@ pub(crate) fn sidebar_row(
             Align2::LEFT_CENTER,
             s,
             FontId::proportional(15.0),
-            if selected { ON_ACCENT } else { ink().gamma_multiply(0.86) },
+            if selected {
+                ON_ACCENT
+            } else {
+                ink().gamma_multiply(0.86)
+            },
         );
     }
     if live {
@@ -73,7 +89,8 @@ pub(crate) fn sidebar_row(
         } else {
             Pos2::new(row.max.x - 16.0, row.center().y)
         };
-        ui.painter().circle_filled(dot, 4.5, LIVE.gamma_multiply(pulse));
+        ui.painter()
+            .circle_filled(dot, 4.5, LIVE.gamma_multiply(pulse));
         ui.ctx().request_repaint_after(Duration::from_millis(33));
     }
     resp
@@ -82,11 +99,13 @@ pub(crate) fn sidebar_row(
 impl App {
     /// Draws the sidebar: pages, playlists, groups and channels.
     pub(crate) fn sidebar(&mut self, ui: &mut egui::Ui, compact: bool) {
-
         let live_ids: HashSet<String> = self
             .feeds
             .iter()
-            .filter(|(_, r)| r.as_ref().is_ok_and(|v| v.iter().any(|x| x.kind == Kind::Live)))
+            .filter(|(_, r)| {
+                r.as_ref()
+                    .is_ok_and(|v| v.iter().any(|x| x.kind == Kind::Live))
+            })
             .map(|(k, _)| k.clone())
             .collect();
 
@@ -101,10 +120,23 @@ impl App {
             let (r, resp) = ui.allocate_exact_size(vec2(32.0, 32.0), Sense::click());
             let resp = resp
                 .on_hover_cursor(egui::CursorIcon::PointingHand)
-                .on_hover_text(if compact { "Expand sidebar  (Ctrl+B)" } else { "Collapse sidebar  (Ctrl+B)" });
-            let hv = ui.ctx().animate_bool_with_time(resp.id, resp.hovered(), 0.12);
-            ui.painter().rect_filled(r, CornerRadius::same(10), ov((10.0 + 22.0 * hv) as u8));
-            icons::draw(ui.painter(), r.center(), icon, 17.0, if hv > 0.5 { ink() } else { icons::muted_icon() });
+                .on_hover_text(tr(if compact {
+                    "Expand sidebar  (Ctrl+B)"
+                } else {
+                    "Collapse sidebar  (Ctrl+B)"
+                }));
+            let hv = ui
+                .ctx()
+                .animate_bool_with_time(resp.id, resp.hovered(), 0.12);
+            ui.painter()
+                .rect_filled(r, CornerRadius::same(10), ov((10.0 + 22.0 * hv) as u8));
+            icons::draw(
+                ui.painter(),
+                r.center(),
+                icon,
+                17.0,
+                if hv > 0.5 { ink() } else { icons::muted_icon() },
+            );
             resp.clicked()
         };
         if compact {
@@ -133,11 +165,11 @@ impl App {
             let f = text_field(
                 ui,
                 &mut self.input,
-                "@handle or link",
+                &tr("@handle or link"),
                 ui.available_width(),
                 40.0,
                 "plus",
-                Some("Add"),
+                Some(&tr("Add")),
                 self.adding,
             );
             let submit = f.submit || f.action;
@@ -148,7 +180,12 @@ impl App {
                 ui.colored_label(LIVE, egui::RichText::new(e).size(12.0));
             }
             ui.add_space(6.0);
-            ui.label(egui::RichText::new("LIBRARY").size(11.0).color(muted()).strong());
+            ui.label(
+                egui::RichText::new(tr("LIBRARY"))
+                    .size(11.0)
+                    .color(muted())
+                    .strong(),
+            );
         }
 
         let sel = self.sel.clone();
@@ -156,40 +193,130 @@ impl App {
         let mut remove = None;
         let mut open_file = false;
         let active = self.jobs.len();
-        if sidebar_row(ui, "Home", None, "home", sel == Sel::Home, false, compact).clicked() {
+        if sidebar_row(
+            ui,
+            &tr("Home"),
+            None,
+            "home",
+            sel == Sel::Home,
+            false,
+            compact,
+        )
+        .clicked()
+        {
             new_sel = Some(Sel::Home);
         }
-        if sidebar_row(ui, "Live now", None, "live", sel == Sel::Live, false, compact).clicked() {
+        if sidebar_row(
+            ui,
+            &tr("Live now"),
+            None,
+            "live",
+            sel == Sel::Live,
+            false,
+            compact,
+        )
+        .clicked()
+        {
             new_sel = Some(Sel::Live);
         }
-        if sidebar_row(ui, "Music", None, "note", matches!(sel, Sel::Music | Sel::MusicAlbum(_) | Sel::MusicArtist(_)), false, compact).clicked() {
+        if sidebar_row(
+            ui,
+            &tr("Music"),
+            None,
+            "note",
+            matches!(sel, Sel::Music | Sel::MusicAlbum(_) | Sel::MusicArtist(_)),
+            false,
+            compact,
+        )
+        .clicked()
+        {
             new_sel = Some(Sel::Music);
         }
-        if sidebar_row(ui, "Podcasts", None, "mic", matches!(sel, Sel::Podcasts | Sel::Podcast(_)), self.pods.iter().any(|p| self.pod_new_count(p) > 0), compact).clicked() {
+        if sidebar_row(
+            ui,
+            &tr("Podcasts"),
+            None,
+            "mic",
+            matches!(sel, Sel::Podcasts | Sel::Podcast(_)),
+            self.pods.iter().any(|p| self.pod_new_count(p) > 0),
+            compact,
+        )
+        .clicked()
+        {
             new_sel = Some(Sel::Podcasts);
         }
         let dl_label = if active > 0 {
             let avg = self.jobs.iter().map(|j| j.progress).sum::<f32>() / active as f32;
-            format!("Downloads  ({active} • {}%)", (avg * 100.0) as u32)
+            trf("Downloads  ({active} • {percent}%)", &[("active", &active.to_string()), ("percent", &((avg * 100.0) as u32).to_string())])
         } else {
-            "Downloads".to_string()
+            tr("Downloads")
         };
-        if sidebar_row(ui, "History", None, "history", sel == Sel::History, false, compact).clicked() {
+        if sidebar_row(
+            ui,
+            &tr("History"),
+            None,
+            "history",
+            sel == Sel::History,
+            false,
+            compact,
+        )
+        .clicked()
+        {
             new_sel = Some(Sel::History);
         }
-        if sidebar_row(ui, "Insights", None, "chart", sel == Sel::Stats, false, compact).clicked() {
+        if sidebar_row(
+            ui,
+            &tr("Insights"),
+            None,
+            "chart",
+            sel == Sel::Stats,
+            false,
+            compact,
+        )
+        .clicked()
+        {
             new_sel = Some(Sel::Stats);
         }
-        if sidebar_row(ui, &dl_label, None, "download", sel == Sel::Downloads, active > 0, compact).clicked() {
+        if sidebar_row(
+            ui,
+            &dl_label,
+            None,
+            "download",
+            sel == Sel::Downloads,
+            active > 0,
+            compact,
+        )
+        .clicked()
+        {
             new_sel = Some(Sel::Downloads);
         }
-        if sidebar_row(ui, "Clips", None, "scissors", sel == Sel::Clips, false, compact).clicked() {
+        if sidebar_row(
+            ui,
+            &tr("Clips"),
+            None,
+            "scissors",
+            sel == Sel::Clips,
+            false,
+            compact,
+        )
+        .clicked()
+        {
             new_sel = Some(Sel::Clips);
         }
-        if sidebar_row(ui, "Open file…", None, "open", false, false, compact).clicked() {
+        if sidebar_row(ui, &tr("Open file…"), None, "open", false, false, compact).clicked() {
             open_file = true;
         }
-        if sidebar_row(ui, "Settings", None, "settings", sel == Sel::Settings, false, compact).clicked() {
+        if sidebar_row(
+            ui,
+            &tr("Settings"),
+            None,
+            "settings",
+            sel == Sel::Settings,
+            false,
+            compact,
+        )
+        .clicked()
+        {
             new_sel = Some(Sel::Settings);
         }
         ui.add_space(4.0);
@@ -206,12 +333,12 @@ impl App {
                 ui.separator();
             } else {
                 ui.horizontal(|ui| {
-                    ui.label(egui::RichText::new("PLAYLISTS").size(11.0).color(muted()).strong());
+                    ui.label(egui::RichText::new(tr("PLAYLISTS")).size(11.0).color(muted()).strong());
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         let (r, resp) = ui.allocate_exact_size(vec2(24.0, 24.0), Sense::click());
                         let resp = resp
                             .on_hover_cursor(egui::CursorIcon::PointingHand)
-                            .on_hover_text("New playlist");
+                            .on_hover_text(tr("New playlist"));
                         let hv = ui.ctx().animate_bool_with_time(resp.id, resp.hovered(), 0.12);
                         ui.painter().rect_filled(r, CornerRadius::same(8), ov((10.0 + 25.0 * hv) as u8));
                         icons::draw(ui.painter(), r.center(), "plus", 13.0, if hv > 0.5 { ink() } else { icons::muted_icon() });
@@ -219,7 +346,7 @@ impl App {
                         let (r, resp) = ui.allocate_exact_size(vec2(24.0, 24.0), Sense::click());
                         let resp = resp
                             .on_hover_cursor(egui::CursorIcon::PointingHand)
-                            .on_hover_text("Import playlists from YouTube");
+                            .on_hover_text(tr("Import playlists from YouTube"));
                         let hv = ui.ctx().animate_bool_with_time(resp.id, resp.hovered(), 0.12);
                         ui.painter().rect_filled(r, CornerRadius::same(8), ov((10.0 + 25.0 * hv) as u8));
                         icons::draw(ui.painter(), r.center(), "download", 13.0, if hv > 0.5 { ink() } else { icons::muted_icon() });
@@ -241,7 +368,7 @@ impl App {
                 }
                 if !is_builtin_list(&l.id) {
                     r.context_menu(|ui| {
-                        if ui.button("Delete playlist").clicked() {
+                        if ui.button(tr("Delete playlist")).clicked() {
                             delete_list = Some(l.id.clone());
                             ui.close();
                         }
@@ -256,10 +383,10 @@ impl App {
                 }
             } else {
                 ui.horizontal(|ui| {
-                    ui.label(egui::RichText::new("GROUPS").size(11.0).color(muted()).strong());
+                    ui.label(egui::RichText::new(tr("GROUPS")).size(11.0).color(muted()).strong());
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         let (r, resp) = ui.allocate_exact_size(vec2(24.0, 24.0), Sense::click());
-                        let resp = resp.on_hover_cursor(egui::CursorIcon::PointingHand).on_hover_text("New group");
+                        let resp = resp.on_hover_cursor(egui::CursorIcon::PointingHand).on_hover_text(tr("New group"));
                         let hv = ui.ctx().animate_bool_with_time(resp.id, resp.hovered(), 0.12);
                         ui.painter().rect_filled(r, CornerRadius::same(8), ov((10.0 + 25.0 * hv) as u8));
                         icons::draw(ui.painter(), r.center(), "plus", 13.0, if hv > 0.5 { ink() } else { icons::muted_icon() });
@@ -267,7 +394,7 @@ impl App {
                     });
                 });
                 if self.groups.is_empty() {
-                    ui.label(egui::RichText::new("Group channels, e.g. Music or News. Right-click a channel to add it.").size(12.0).color(muted()));
+                    ui.label(egui::RichText::new(tr("Group channels, e.g. Music or News. Right-click a channel to add it.")).size(12.0).color(muted()));
                 }
             }
             for g in &self.groups {
@@ -278,7 +405,7 @@ impl App {
                     new_sel = Some(Sel::Group(g.id.clone()));
                 }
                 r.context_menu(|ui| {
-                    if ui.button("Delete group").clicked() {
+                    if ui.button(tr("Delete group")).clicked() {
                         delete_group = Some(g.id.clone());
                         ui.close();
                     }
@@ -288,10 +415,10 @@ impl App {
             if compact {
                 ui.separator();
             } else {
-                ui.label(egui::RichText::new("CHANNELS").size(11.0).color(muted()).strong());
+                ui.label(egui::RichText::new(tr("CHANNELS")).size(11.0).color(muted()).strong());
                 if !self.channels.is_empty() {
                     let w = ui.available_width();
-                    text_field(ui, &mut self.chan_filter, "Filter channels", w, 36.0, "search", None, false);
+                    text_field(ui, &mut self.chan_filter,&tr("Filter channels"), w, 36.0, "search", None, false);
                     ui.add_space(4.0);
                 }
             }
@@ -299,7 +426,7 @@ impl App {
             if !needle.is_empty() && !compact {
                 let n = self.channels.iter().filter(|c| fold(&c.name).contains(&needle)).count();
                 if n == 0 {
-                    ui.label(egui::RichText::new("No channels match.").color(muted()).size(13.0));
+                    ui.label(egui::RichText::new(tr("No channels match.")).color(muted()).size(13.0));
                 }
             }
             for c in self.channels.iter().filter(|c| needle.is_empty() || fold(&c.name).contains(&needle)) {
@@ -335,7 +462,7 @@ impl App {
                     new_sel = Some(Sel::Channel(c.id.clone()));
                 }
                 r.context_menu(|ui| {
-                    ui.menu_button("Add to group", |ui| {
+                    ui.menu_button(tr("Add to group"), |ui| {
                         for g in &self.groups {
                             let has = g.channels.contains(&c.id);
                             if ui.selectable_label(has, g.name.clone()).clicked() {
@@ -346,14 +473,14 @@ impl App {
                         if !self.groups.is_empty() {
                             ui.separator();
                         }
-                        if ui.button("+  New group…").clicked() {
+                        if ui.button(tr("+  New group…")).clicked() {
                             new_group_for = Some(c.id.clone());
                             ui.close();
                         }
                     });
-                    ui.menu_button("Notifications", |ui| {
+                    ui.menu_button(tr("Notifications"), |ui| {
                         let cur = self.settings.chan_prefs.get(&c.id).map_or(0, |p| p.notify);
-                        for (v, label) in [(0u8, "Live streams only"), (1, "Live streams and new uploads"), (2, "Off for this channel")] {
+                        for (v, label) in [(0u8, tr("Live streams only")), (1, tr("Live streams and new uploads")), (2, tr("Off for this channel"))] {
                             if ui.selectable_label(cur == v, label).clicked() {
                                 chan_notify = Some((c.id.clone(), v));
                                 ui.close();
@@ -361,14 +488,14 @@ impl App {
                         }
                     });
                     ui.separator();
-                    if ui.button("Remove channel").clicked() {
+                    if ui.button(tr("Remove channel")).clicked() {
                         remove = Some(c.id.clone());
                         ui.close();
                     }
                 });
             }
             if self.channels.is_empty() && !compact {
-                ui.label(egui::RichText::new("Nothing here yet. Add a channel above to get started.").color(muted()).size(13.0));
+                ui.label(egui::RichText::new(tr("Nothing here yet. Add a channel above to get started.")).color(muted()).size(13.0));
             }
         });
         if open_file {
@@ -390,7 +517,7 @@ impl App {
             self.settings.chan_prefs.entry(cid).or_default().notify = v;
             self.save_settings();
             if !self.settings.notifications {
-                self.toast("Turn on notifications in Settings to receive them");
+                self.toast(tr("Turn on notifications in Settings to receive them"));
             }
         }
         if let Some((gid, cid)) = group_toggle {
@@ -413,7 +540,15 @@ impl App {
         if let Some(id) = delete_list {
             self.lists.retain(|l| l.id != id);
             if !self.lists.iter().any(|l| l.id == "favorites") {
-                self.lists.insert(0, LocalList { id: "favorites".into(), name: "Favorites".into(), videos: vec![], offline: false });
+                self.lists.insert(
+                    0,
+                    LocalList {
+                        id: "favorites".into(),
+                        name: "Favorites".into(),
+                        videos: vec![],
+                        offline: false,
+                    },
+                );
             }
             save_lists(&self.lists);
             if self.sel == Sel::Local(id) {
@@ -433,7 +568,11 @@ impl App {
                 self.music_q.clear();
                 self.music_open_home();
             }
-            if s == Sel::Live && (self.live.is_none() || now_secs().saturating_sub(self.fcache.live_updated) > 180) && !self.live_loading {
+            if s == Sel::Live
+                && (self.live.is_none()
+                    || now_secs().saturating_sub(self.fcache.live_updated) > 180)
+                && !self.live_loading
+            {
                 self.load_live();
             }
             if let Sel::Channel(cid) = &s {

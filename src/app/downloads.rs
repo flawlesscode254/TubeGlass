@@ -8,7 +8,7 @@ impl App {
         // a manual request tries everything again, including what gave up before
         self.dl_gaveup.clear();
         let n = self.download_missing(vids, group);
-        self.toast(if n == 0 { "Everything is already downloaded".to_string() } else { format!("Downloading {n} item{}", if n == 1 { "" } else { "s" }) });
+        self.toast(if n == 0 { tr("Everything is already downloaded") } else if n == 1 { trf("Downloading {count} item", &[("count", &n.to_string())]) } else { trf("Downloading {count} items", &[("count", &n.to_string())]) });
     }
 
     /// Queue everything in `vids` that is not saved yet; returns how many were queued.
