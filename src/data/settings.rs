@@ -54,6 +54,8 @@ pub(crate) struct Settings {
     pub(crate) accent_custom: [u8; 3],
     /// 0 dark, 1 light, 2 follow the system
     pub(crate) theme: u8,
+    /// UI language preference: system, en, or a language catalog code.
+    pub(crate) language: String,
     pub(crate) font_scale: f32,
     /// 0 compact, 1 comfortable, 2 spacious
     pub(crate) density: u8,
@@ -97,6 +99,7 @@ impl Default for Settings {
             last_update_check: 0,
             accent_custom: [255, 154, 31],
             theme: 0,
+            language: "system".into(),
             font_scale: 1.0,
             density: 1,
             view_mode: 0,
@@ -139,8 +142,18 @@ pub(crate) fn save_settings(s: &Settings) {
 
 /// Push settings that are read from global state (accent colour, download folder).
 pub(crate) fn apply_settings(s: &Settings) {
-    ACCENT_IDX.store(s.accent.min(ACCENTS.len()), std::sync::atomic::Ordering::Relaxed);
+    ACCENT_IDX.store(
+        s.accent.min(ACCENTS.len()),
+        std::sync::atomic::Ordering::Relaxed,
+    );
     let c = s.accent_custom;
-    ACCENT_CUSTOM.store(((c[0] as u32) << 16) | ((c[1] as u32) << 8) | c[2] as u32, std::sync::atomic::Ordering::Relaxed);
-    download::set_dir(if s.download_dir.trim().is_empty() { None } else { Some(s.download_dir.clone().into()) });
+    ACCENT_CUSTOM.store(
+        ((c[0] as u32) << 16) | ((c[1] as u32) << 8) | c[2] as u32,
+        std::sync::atomic::Ordering::Relaxed,
+    );
+    download::set_dir(if s.download_dir.trim().is_empty() {
+        None
+    } else {
+        Some(s.download_dir.clone().into())
+    });
 }

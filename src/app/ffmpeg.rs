@@ -35,7 +35,7 @@ impl App {
             crate::platform::reject_ffmpeg();
             self.start_ffmpeg_setup();
         } else {
-            self.ffmpeg = FfmpegState::Failed(format!("No ready-made ffmpeg exists for {}. {}", ffmpeg_setup::platform_key(), crate::platform::ffmpeg_hint()));
+            self.ffmpeg = FfmpegState::Failed(trf("No ready-made ffmpeg exists for {platform}. {hint}", &[("platform", &ffmpeg_setup::platform_key()), ("hint", &crate::platform::ffmpeg_hint())]));
         }
     }
 
@@ -44,7 +44,7 @@ impl App {
         match r {
             Ok(_) => {
                 self.ffmpeg = FfmpegState::Ready;
-                self.toast("ffmpeg is ready");
+                self.toast(tr("ffmpeg is ready"));
                 // a video that failed only because ffmpeg was missing can be played now
                 if matches!(self.player.state(), State::Error(_)) {
                     self.want_retry = true;

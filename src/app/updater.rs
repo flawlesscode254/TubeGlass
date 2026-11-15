@@ -50,24 +50,24 @@ impl App {
                     Some(rel) => {
                         // a skipped version stays quiet unless the user asked
                         if manual || rel.version != self.settings.skipped_version {
-                            self.update_note = Some(format!("Version {} is available", rel.version));
+                            self.update_note = Some(trf("Version {version} is available", &[("version", &rel.version)]));
                             if self.update.as_ref().map(|u| &u.version) != Some(&rel.version) {
                                 self.update_state = UpdateState::Idle;
                             }
                             self.update = Some(rel);
                         } else {
-                            self.update_note = Some(format!("Version {} is available (you skipped it)", rel.version));
+                            self.update_note = Some(trf("Version {version} is available (you skipped it)", &[("version", &rel.version)]));
                         }
                     }
                     None => {
                         self.update = None;
-                        self.update_note = Some(format!("You have the latest version ({})", update::CURRENT));
+                        self.update_note = Some(trf("You have the latest version ({version})", &[("version", update::CURRENT)]));
                     }
                 }
             }
             Err(e) => {
                 if manual {
-                    self.update_note = Some(format!("Could not check for updates: {e}"));
+                    self.update_note = Some(trf("Could not check for updates: {error}", &[("error", &e)]));
                 }
             }
         }

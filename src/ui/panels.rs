@@ -8,9 +8,9 @@ impl App {
         ui.add_space(8.0);
         if self.queue.is_empty() {
             ui.add_space(24.0);
-            ui.label(egui::RichText::new("The queue is empty.").size(15.0).color(muted()));
+            ui.label(egui::RichText::new(tr("The queue is empty.")).size(15.0).color(muted()));
             ui.label(
-                egui::RichText::new("Use “Play all” on a playlist or channel, or right-click a video and choose “Add to queue”.")
+                egui::RichText::new(tr("Use “Play all” on a playlist or channel, or right-click a video and choose “Add to queue”."))
                     .size(13.0)
                     .color(muted()),
             );
@@ -22,12 +22,18 @@ impl App {
         let mut save_queue = false;
         let mut moved: Option<(usize, usize)> = None;
         ui.horizontal(|ui| {
-            ui.label(egui::RichText::new(format!("{} items  •  drag to reorder", self.queue.len())).size(13.0).color(muted()));
+            let count = self.queue.len().to_string();
+            let summary = if self.queue.len() == 1 {
+                trf("{count} item  •  drag to reorder", &[("count", &count)])
+            } else {
+                trf("{count} items  •  drag to reorder", &[("count", &count)])
+            };
+            ui.label(egui::RichText::new(summary).size(13.0).color(muted()));
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                if ui.add(egui::Button::new("Clear")).clicked() {
+                if ui.add(egui::Button::new(tr("Clear"))).clicked() {
                     clear = true;
                 }
-                if ui.add(egui::Button::new("Save as playlist")).clicked() {
+                if ui.add(egui::Button::new(tr("Save as playlist"))).clicked() {
                     save_queue = true;
                 }
             });
@@ -117,13 +123,18 @@ impl App {
                 })
                 .collect();
             if videos.is_empty() {
-                self.toast("Nothing in the queue can be saved as a playlist");
+                self.toast(tr("Nothing in the queue can be saved as a playlist"));
             } else {
                 let id = format!("l-{}", now_secs());
-                let name = format!("Saved queue ({} items)", videos.len());
+                let count = videos.len().to_string();
+                let name = if videos.len() == 1 {
+                    trf("Saved queue ({count} item)", &[("count", &count)])
+                } else {
+                    trf("Saved queue ({count} items)", &[("count", &count)])
+                };
                 self.lists.push(LocalList { id: id.clone(), name: name.clone(), videos, offline: false });
                 save_lists(&self.lists);
-                self.toast(format!("Saved “{name}” — find it under Playlists"));
+                self.toast(trf("Saved “{name}” — find it under Playlists", &[("name", &name)]));
             }
         }
         if clear {
@@ -145,7 +156,7 @@ impl App {
     pub(crate) fn related_body(&mut self, ui: &mut egui::Ui) {
         ui.add_space(8.0);
         let Some(w) = self.watching.clone().filter(|w| !non_yt(&w.id)) else {
-            ui.label(egui::RichText::new("Related videos are only available for YouTube videos.").size(14.0).color(muted()));
+            ui.label(egui::RichText::new(tr("Related videos are only available for YouTube videos.")).size(14.0).color(muted()));
             return;
         };
         if self.related.as_ref().is_none_or(|r| r.0 != w.id) {
@@ -217,13 +228,13 @@ impl App {
             ui.spacing_mut().item_spacing = vec2(6.0, 6.0);
             let notes_n = self.watching.as_ref().and_then(|w| self.bookmarks.get(&w.id)).map_or(0, |b| b.len());
             let tabs = [
-                (SideTab::Comments, "Comments".to_string()),
-                (SideTab::Lyrics, "Lyrics".to_string()),
-                (SideTab::Queue, format!("Queue{}", if self.queue.is_empty() { String::new() } else { format!(" {}", self.queue.len()) })),
-                (SideTab::Related, "Related".to_string()),
-                (SideTab::Transcript, "Transcript".to_string()),
-                (SideTab::Notes, format!("Notes{}", if notes_n == 0 { String::new() } else { format!(" {notes_n}") })),
-                (SideTab::Clip, "Clip".to_string()),
+                (SideTab::Comments, tr("Comments")),
+                (SideTab::Lyrics, tr("Lyrics")),
+                (SideTab::Queue, if self.queue.is_empty() { tr("Queue") } else { trf("Queue ({count})", &[("count", &self.queue.len().to_string())]) }),
+                (SideTab::Related, tr("Related")),
+                (SideTab::Transcript, tr("Transcript")),
+                (SideTab::Notes, if notes_n == 0 { tr("Notes") } else { trf("Notes ({count})", &[("count", &notes_n.to_string())]) }),
+                (SideTab::Clip, tr("Clip")),
             ];
             for (t, label) in tabs {
                 let on = self.side_tab == t;
@@ -337,7 +348,7 @@ impl App {
                                         let resp = resp.on_hover_cursor(egui::CursorIcon::PointingHand);
                                         let hv = ui.ctx().animate_bool_with_time(resp.id, resp.hovered(), 0.12);
                                         ui.painter().rect_filled(r, CornerRadius::same(13), accent().gamma_multiply(0.15 + 0.2 * hv));
-                                        icon_label(ui, r.center(), "chevron_down", "Show more replies", accent2(), false);
+                                        icon_label(ui, r.center(), "chevron_down", &tr("Show more replies"), accent2(), false);
                                         if resp.clicked() {
                                             more_reply = Some((c.id.clone(), next.clone()));
                                         }
@@ -355,7 +366,7 @@ impl App {
                     if self.comments_next.is_some() {
                         if self.comments_busy {
                             ui.add(egui::Spinner::new());
-                        } else if ui.add(egui::Button::new("Load more comments").fill(card())).clicked() {
+                        } else if ui.add(egui::Button::new(tr("Load more comments")).fill(card())).clicked() {
                             more = true;
                         }
                     }

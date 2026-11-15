@@ -28,7 +28,7 @@ impl App {
         ui.add_space(8.0);
         let narrow = ui.available_width() < 900.0;
         ui.horizontal_wrapped(|ui| {
-            ui.label(egui::RichText::new("Downloads").size(26.0).strong());
+            ui.label(egui::RichText::new(tr("Downloads")).size(26.0).strong());
             ui.label(
                 egui::RichText::new(download::dir().display().to_string())
                     .size(12.0)
@@ -38,21 +38,22 @@ impl App {
                 ui.end_row();
             }
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center).with_main_wrap(true), |ui| {
-                if ui.add(egui::Button::new("Open folder")).clicked() {
+                if ui.add(egui::Button::new(tr("Open folder"))).clicked() {
                     let _ = std::fs::create_dir_all(download::dir());
                     crate::platform::open_path(&download::dir());
                 }
                 if !self.library.is_empty() {
                     if self.dl_sel.is_some() {
                         let n = self.dl_sel.as_ref().map_or(0, |s| s.len());
-                        if ui.add(egui::Button::new("Done")).clicked() {
+                        if ui.add(egui::Button::new(tr("Done"))).clicked() {
                             self.dl_sel = None;
                             self.dl_confirm = false;
                         }
+                        let count = n.to_string();
                         let label = if self.dl_confirm {
-                            format!("Confirm delete ({n})")
+                            trf("Confirm delete ({count})", &[("count", &count)])
                         } else {
-                            format!("Delete ({n})")
+                            trf("Delete ({count})", &[("count", &count)])
                         };
                         let b = egui::Button::new(egui::RichText::new(label).color(if n > 0 { Color32::WHITE } else { muted() }))
                             .fill(if n > 0 { LIVE } else { card() });
@@ -71,7 +72,7 @@ impl App {
                             }
                         }
                         let all = !shown.is_empty() && self.dl_sel.as_ref().is_some_and(|s| shown.iter().all(|d| s.contains(&d.file)));
-                        if ui.add(egui::Button::new(if all { "Select none" } else { "Select all" })).clicked() {
+                        if ui.add(egui::Button::new(tr(if all { "Select none" } else { "Select all" }))).clicked() {
                             self.dl_confirm = false;
                             if all {
                                 self.dl_sel = Some(HashSet::new());
@@ -79,19 +80,25 @@ impl App {
                                 self.dl_sel = Some(shown.iter().map(|d| d.file.clone()).collect());
                             }
                         }
-                    } else if ui.add(egui::Button::new("Select")).clicked() {
+                    } else if ui.add(egui::Button::new(tr("Select"))).clicked() {
                         self.dl_sel = Some(HashSet::new());
                     }
                 }
             });
         });
         if let Some(e) = &self.dl_err {
-            ui.colored_label(LIVE, format!("Download failed: {e}"));
+            ui.colored_label(LIVE, trf("Download failed: {error}", &[("error", e)]));
         }
         if !self.dl_errs.is_empty() {
             ui.horizontal(|ui| {
-                ui.colored_label(LIVE, format!("{} download{} failed:", self.dl_errs.len(), if self.dl_errs.len() == 1 { "" } else { "s" }));
-                if ui.small_button("Dismiss").clicked() {
+                let count = self.dl_errs.len().to_string();
+                let summary = if self.dl_errs.len() == 1 {
+                    trf("{count} download failed:", &[("count", &count)])
+                } else {
+                    trf("{count} downloads failed:", &[("count", &count)])
+                };
+                ui.colored_label(LIVE, summary);
+                if ui.small_button(tr("Dismiss")).clicked() {
                     self.dl_errs.clear();
                 }
             });
@@ -102,13 +109,13 @@ impl App {
         ui.add_space(8.0);
         if !self.library.is_empty() {
             let w = ui.available_width();
-            text_field(ui, &mut self.lib_filter, "Search downloads", w, 38.0, "search", None, false);
+            text_field(ui, &mut self.lib_filter, &tr("Search downloads"), w, 38.0, "search", None, false);
             ui.add_space(6.0);
             ui.horizontal(|ui| {
                 ui.spacing_mut().item_spacing.x = 6.0;
-                for (label, v) in [("Newest", 0u8), ("Largest", 1), ("Oldest", 2), ("A–Z", 3)] {
+                for (label, v) in [(tr("Newest"), 0u8), (tr("Largest"), 1), (tr("Oldest"), 2), (tr("A–Z"), 3)] {
                     let on = self.dl_sort == v;
-                    if icon_btn(ui, "", label, Some(if on { accent() } else { card() }), if on { ON_ACCENT } else { ink() }, false, true).clicked() {
+                    if icon_btn(ui, "", &label, Some(if on { accent() } else { card() }), if on { ON_ACCENT } else { ink() }, false, true).clicked() {
                         self.dl_sort = v;
                     }
                 }
@@ -116,7 +123,7 @@ impl App {
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     self.view_toggle(ui);
                     ui.label(
-                        egui::RichText::new(format!("{} items  •  {}  •  {} free", self.library.len(), fmt_size(total), fmt_size(free_space(&download::dir()))))
+                        egui::RichText::new(trf("{count} items  •  {used}  •  {free} free", &[("count", &self.library.len().to_string()), ("used", &fmt_size(total)), ("free", &fmt_size(free_space(&download::dir()))) ]))
                             .size(12.5)
                             .color(muted()),
                     );
@@ -139,7 +146,7 @@ impl App {
                 let (r, _) = ui.allocate_exact_size(vec2(56.0, 56.0), Sense::hover());
                 icons::draw(ui.painter(), r.center(), "download", 48.0, muted());
                 ui.label(
-                    egui::RichText::new("Nothing downloaded yet. Use the Download button in the player, or right-click any video.")
+                    egui::RichText::new(tr("Nothing downloaded yet. Use the Download button in the player, or right-click any video."))
                         .size(16.0)
                         .color(muted()),
                 );
@@ -177,15 +184,15 @@ impl App {
                 let mb = j.bytes as f64 / 1_048_576.0;
                 let speed = mb / secs;
                 let eta = if j.progress > 0.02 { secs * (1.0 - j.progress as f64) / j.progress as f64 } else { 0.0 };
-                let mut line = format!("{}%  •  {:.1} MB", (j.progress * 100.0) as u32, mb);
+                let mut line = trf("{percent}%  •  {size} MB", &[("percent", &((j.progress * 100.0) as u32).to_string()), ("size", &format!("{mb:.1}"))]);
                 if is_paused {
-                    line += "  •  Paused";
+                    line += &trf("  •  {status}", &[("status", &tr("Paused"))]);
                 } else {
                     if speed > 0.0 {
-                        line += &format!("  •  {:.1} MB/s", speed);
+                        line += &trf("  •  {speed} MB/s", &[("speed", &format!("{speed:.1}"))]);
                     }
                     if eta > 0.0 {
-                        line += &format!("  •  about {} left", fmt_time(eta));
+                        line += &trf("  •  about {time} left", &[("time", &fmt_time(eta))]);
                     }
                 }
                 ui.painter().text(Pos2::new(tx, rect.min.y + 64.0), Align2::LEFT_CENTER, line, FontId::proportional(13.0), muted());
@@ -193,13 +200,13 @@ impl App {
                 let br = Rect::from_center_size(Pos2::new(rect.max.x - 56.0, rect.center().y), vec2(88.0, 32.0));
                 let resp = ui.interact(br, uid(("dlc", &j.id)), Sense::click()).on_hover_cursor(egui::CursorIcon::PointingHand);
                 ui.painter().rect_filled(br, CornerRadius::same(16), if resp.hovered() { LIVE } else { card_hi() });
-                ui.painter().text(br.center(), Align2::CENTER_CENTER, "Cancel", FontId::proportional(14.0), Color32::WHITE);
+                ui.painter().text(br.center(), Align2::CENTER_CENTER, tr("Cancel"), FontId::proportional(14.0), Color32::WHITE);
                 if resp.clicked() {
                     cancel = Some(j.id.clone());
                 }
                 // pause / resume
                 let pr = Rect::from_center_size(Pos2::new(br.min.x - 28.0, rect.center().y), vec2(36.0, 32.0));
-                let presp = ui.interact(pr, uid(("dlp", &j.id)), Sense::click()).on_hover_cursor(egui::CursorIcon::PointingHand).on_hover_text(if is_paused { "Resume" } else { "Pause" });
+                let presp = ui.interact(pr, uid(("dlp", &j.id)), Sense::click()).on_hover_cursor(egui::CursorIcon::PointingHand).on_hover_text(tr(if is_paused { "Resume" } else { "Pause" }));
                 ui.painter().rect_filled(pr, CornerRadius::same(16), if is_paused { accent() } else if presp.hovered() { card_hi() } else { card() });
                 icons::draw(ui.painter(), pr.center(), if is_paused { "play" } else { "pause" }, 15.0, if is_paused { ON_ACCENT } else { ink() });
                 if presp.clicked() {
@@ -240,7 +247,7 @@ impl App {
             if rows.is_empty() && !self.library.is_empty() {
                 ui.add_space(40.0);
                 ui.vertical_centered(|ui| {
-                    ui.label(egui::RichText::new("No downloads match your search.").size(16.0).color(muted()));
+                    ui.label(egui::RichText::new(tr("No downloads match your search.")).size(16.0).color(muted()));
                 });
             }
             macro_rules! flush_cards {
@@ -258,9 +265,9 @@ impl App {
                                     let uri = if std::path::Path::new(&d.thumb).exists() { crate::platform::file_uri(&d.thumb) } else { String::new() };
                                     let size = std::fs::metadata(&d.file).map(|x| x.len()).unwrap_or(0) as f64 / 1_048_576.0;
                                     let sub = if d.audio_only {
-                                        format!("{}  •  audio  •  {:.0} MB", d.channel, size)
+                                        trf("{channel}  •  {kind}  •  {size} MB", &[("channel", &d.channel), ("kind", &tr("Audio")), ("size", &format!("{size:.0}"))])
                                     } else {
-                                        format!("{}  •  {}p  •  {:.0} MB", d.channel, d.height, size)
+                                        trf("{channel}  •  {quality}p  •  {size} MB", &[("channel", &d.channel), ("quality", &d.height.to_string()), ("size", &format!("{size:.0}"))])
                                     };
                                     let img = views::media_card(ui, rect, m, &uri, &d.title, &sub, hv);
                                     views::pill_label(ui, img.right_bottom(), &fmt_time(d.duration));
@@ -304,7 +311,12 @@ impl App {
                                     let hv = ui.ctx().animate_bool_with_time(resp.id, resp.hovered(), 0.12);
                                     let uri = members.iter().find(|x| std::path::Path::new(&x.thumb).exists()).map(|x| crate::platform::file_uri(&x.thumb)).unwrap_or_default();
                                     let mb: f64 = members.iter().map(|x| std::fs::metadata(&x.file).map(|f| f.len()).unwrap_or(0) as f64).sum::<f64>() / 1_048_576.0;
-                                    let sub = format!("{} item{}  •  {:.0} MB", members.len(), if members.len() == 1 { "" } else { "s" }, mb);
+                                    let count = members.len().to_string();
+                                    let sub = if members.len() == 1 {
+                                        trf("{count} item  •  {size} MB", &[("count", &count), ("size", &format!("{mb:.0}"))])
+                                    } else {
+                                        trf("{count} items  •  {size} MB", &[("count", &count), ("size", &format!("{mb:.0}"))])
+                                    };
                                     let img = views::media_card(ui, rect, m, &uri, name, &sub, hv);
                                     // a folder badge with the track count
                                     let b = Rect::from_min_size(img.min + vec2(7.0, 7.0), vec2(48.0, 22.0));
@@ -380,10 +392,16 @@ impl App {
                         let mb: f64 = members.iter().map(|m| std::fs::metadata(&m.file).map(|x| x.len()).unwrap_or(0) as f64).sum::<f64>() / 1_048_576.0;
                         let name_t = truncate(ui, &name, FontId::proportional(17.0), w - 230.0, 1);
                         ui.painter().text(Pos2::new(rect.min.x + 58.0, rect.center().y - 10.0), Align2::LEFT_CENTER, name_t, FontId::proportional(17.0), ink());
+                        let count = members.len().to_string();
+                        let summary = if members.len() == 1 {
+                            trf("{count} item  •  {size} MB", &[("count", &count), ("size", &format!("{mb:.0}"))])
+                        } else {
+                            trf("{count} items  •  {size} MB", &[("count", &count), ("size", &format!("{mb:.0}"))])
+                        };
                         ui.painter().text(
                             Pos2::new(rect.min.x + 58.0, rect.center().y + 12.0),
                             Align2::LEFT_CENTER,
-                            format!("{} item{}  •  {:.0} MB", members.len(), if members.len() == 1 { "" } else { "s" }, mb),
+                            summary,
                             FontId::proportional(13.0),
                             muted(),
                         );
@@ -438,9 +456,9 @@ impl App {
                 let title = truncate(ui, &d.title, FontId::proportional(16.0), w - 320.0, 1);
                 let size = std::fs::metadata(&d.file).map(|m| m.len()).unwrap_or(0) as f64 / 1_048_576.0;
                 let sub = if d.audio_only {
-                    format!("{}  •  audio  •  {}  •  {:.0} MB", d.channel, fmt_time(d.duration), size)
+                    trf("{channel}  •  {kind}  •  {time}  •  {size} MB", &[("channel", &d.channel), ("kind", &tr("Audio")), ("time", &fmt_time(d.duration)), ("size", &format!("{size:.0}"))])
                 } else {
-                    format!("{}  •  {}p  •  {}  •  {:.0} MB", d.channel, d.height, fmt_time(d.duration), size)
+                    trf("{channel}  •  {quality}p  •  {time}  •  {size} MB", &[("channel", &d.channel), ("quality", &d.height.to_string()), ("time", &fmt_time(d.duration)), ("size", &format!("{size:.0}"))])
                 };
                 ui.painter().text(Pos2::new(tx, rect.center().y - 11.0), Align2::LEFT_CENTER, title, FontId::proportional(16.0), ink());
                 ui.painter().text(Pos2::new(tx, rect.center().y + 12.0), Align2::LEFT_CENTER, sub, FontId::proportional(13.0), muted());

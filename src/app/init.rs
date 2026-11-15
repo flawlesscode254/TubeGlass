@@ -114,7 +114,11 @@ impl App {
             amb_cur: vec![],
             amb_tex: None,
             nav_back: vec![],
-            nav_cur: NavEntry { sel: Sel::Home, tab: ChanTab::Videos, query: String::new() },
+            nav_cur: NavEntry {
+                sel: Sel::Home,
+                tab: ChanTab::Videos,
+                query: String::new(),
+            },
             nav_skip: false,
             settings: load_settings(),
             sleep: None,
@@ -193,6 +197,7 @@ impl App {
             fullscreen: false,
             ctx: cc.egui_ctx.clone(),
         };
+        i18n::set_language(&app.settings.language);
         // Show what was fetched last time right away; only channels we have never seen
         // are fetched. Everything else updates when the user presses Refresh.
         apply_settings(&app.settings);
@@ -219,7 +224,9 @@ impl App {
                         .to_socket_addrs()
                         .ok()
                         .and_then(|mut a| a.next())
-                        .is_some_and(|a| std::net::TcpStream::connect_timeout(&a, Duration::from_secs(4)).is_ok());
+                        .is_some_and(|a| {
+                            std::net::TcpStream::connect_timeout(&a, Duration::from_secs(4)).is_ok()
+                        });
                     let _ = tx.send(Msg::Online(up));
                     ctx.request_repaint();
                     std::thread::sleep(Duration::from_secs(if up { 30 } else { 8 }));
@@ -229,7 +236,10 @@ impl App {
         app.player.quality = app.settings.default_quality;
         app.player.speed = app.settings.speed.clamp(0.5, 2.0);
         app.player.ambient_on = app.settings.ambient;
-        if let Some(arg) = std::env::args().skip(1).find(|a| !a.starts_with('-') && !a.trim().is_empty()) {
+        if let Some(arg) = std::env::args()
+            .skip(1)
+            .find(|a| !a.starts_with('-') && !a.trim().is_empty())
+        {
             app.open_local(arg);
         }
         let fc = load_feed_cache();

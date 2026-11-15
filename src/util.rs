@@ -27,6 +27,22 @@ pub(crate) fn ago(ts: u64) -> String {
     }
 }
 
+/// Localized relative age for app-authored UI labels.
+pub(crate) fn localized_ago(ts: u64) -> String {
+    ago_at(ts, now_secs())
+}
+
+/// Format a relative age with an explicit clock, including future timestamps.
+pub(crate) fn ago_at(ts: u64, now: u64) -> String {
+    let d = now.saturating_sub(ts);
+    match d {
+        0..=59 => tr("just now"),
+        60..=3599 => trf("{count} min ago", &[("count", &(d / 60).to_string())]),
+        3600..=86399 => trf("{count} h ago", &[("count", &(d / 3600).to_string())]),
+        _ => trf("{count} d ago", &[("count", &(d / 86400).to_string())]),
+    }
+}
+
 /// How old a video is, in seconds, from the text YouTube shows ("3d ago", "2 weeks ago",
 /// "Streamed 5mo ago", "12 min ago"). Videos with no such text count as the oldest.
 pub(crate) fn age_secs(meta: &str) -> u64 {

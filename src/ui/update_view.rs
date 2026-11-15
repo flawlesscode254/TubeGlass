@@ -23,25 +23,25 @@ impl App {
             .show(ui, |ui| {
                 ui.horizontal_centered(|ui| match &state {
                     FfmpegState::Downloading(p) => {
-                        ui.label(egui::RichText::new("Setting up ffmpeg (once, about 30 MB) so video and audio can play…").strong().size(14.0));
+                        ui.label(egui::RichText::new(tr("Setting up ffmpeg (once, about 30 MB) so video and audio can play…")).strong().size(14.0));
                         progress_pill(ui, *p, &format!("{}%", (p * 100.0) as u32), 180.0);
                     }
                     FfmpegState::Failed(e) => {
-                        ui.label(egui::RichText::new("ffmpeg is not available, so nothing can play yet.").strong().size(14.0));
+                        ui.label(egui::RichText::new(tr("ffmpeg is not available, so nothing can play yet.")).strong().size(14.0));
                         // the explanation gives way (with an ellipsis) so the buttons always stay visible
                         let room = (ui.available_width() - 330.0).max(80.0);
                         let msg = format!("{e}  {}", crate::platform::ffmpeg_hint());
                         ui.allocate_ui(vec2(room, 24.0), |ui| {
                             ui.add(egui::Label::new(egui::RichText::new(msg).size(13.0).color(muted())).truncate());
                         });
-                        if icon_btn(ui, "refresh", "Try again", Some(accent()), ON_ACCENT, false, true).clicked() {
+                        if icon_btn(ui, "refresh", &tr("Try again"), Some(accent()), ON_ACCENT, false, true).clicked() {
                             retry = true;
                         }
-                        if icon_btn(ui, "", "Get ffmpeg", None, ink(), false, true).clicked() {
+                        if icon_btn(ui, "", &tr("Get ffmpeg"), None, ink(), false, true).clicked() {
                             open = true;
                         }
                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                            if icon_btn(ui, "close", "", None, ink(), false, true).on_hover_text("Hide").clicked() {
+                            if icon_btn(ui, "close", "", None, ink(), false, true).on_hover_text(tr("Hide")).clicked() {
                                 hide = true;
                             }
                         });
@@ -79,40 +79,40 @@ impl App {
                     ui.add_space(26.0);
                     match self.update_state.clone() {
                         UpdateState::Idle | UpdateState::Failed(_) => {
-                            ui.label(egui::RichText::new(format!("TubeGlass {} is available", rel.version)).strong().size(14.5));
-                            ui.label(egui::RichText::new(format!("(you have {})", update::CURRENT)).size(13.0).color(muted()));
+                            ui.label(egui::RichText::new(trf("TubeGlass {version} is available", &[("version", &rel.version)])).strong().size(14.5));
+                            ui.label(egui::RichText::new(trf("(you have {version})", &[("version", update::CURRENT)])).size(13.0).color(muted()));
                             if let UpdateState::Failed(e) = &self.update_state {
                                 ui.colored_label(LIVE, truncate(ui, e, FontId::proportional(13.0), 360.0, 1));
                             }
                             let have_file = update::pick_asset(&rel.assets, update::detect_install(), std::env::consts::ARCH).is_some();
-                            if icon_btn(ui, "download", if have_file { "Update" } else { "Open release page" }, Some(accent()), ON_ACCENT, false, true).clicked() {
+                            if icon_btn(ui, "download", &tr(if have_file { "Update" } else { "Open release page" }), Some(accent()), ON_ACCENT, false, true).clicked() {
                                 start = true;
                             }
-                            if !rel.notes.is_empty() && icon_btn(ui, "", "What's new", None, ink(), false, true).clicked() {
+                            if !rel.notes.is_empty() && icon_btn(ui, "",&tr("What's new"), None, ink(), false, true).clicked() {
                                 notes = true;
                             }
-                            if icon_btn(ui, "", "Skip this version", None, ink(), false, true).clicked() {
+                            if icon_btn(ui, "",&tr("Skip this version"), None, ink(), false, true).clicked() {
                                 skip = true;
                             }
                         }
                         UpdateState::Downloading(p) => {
-                            ui.label(egui::RichText::new(format!("Downloading TubeGlass {}…", rel.version)).size(14.0));
+                            ui.label(egui::RichText::new(trf("Downloading TubeGlass {version}…", &[("version", &rel.version)])).size(14.0));
                             progress_pill(ui, p, &format!("{}%", (p * 100.0) as u32), 200.0);
                         }
                         UpdateState::Done(path, installed) => {
                             if installed {
-                                ui.label(egui::RichText::new(format!("TubeGlass {} is installed. Restart to use it.", rel.version)).strong().size(14.5));
-                                if icon_btn(ui, "refresh", "Restart now", Some(accent()), ON_ACCENT, false, true).clicked() {
+                                ui.label(egui::RichText::new(trf("TubeGlass {version} is installed. Restart to use it.", &[("version", &rel.version)])).strong().size(14.5));
+                                if icon_btn(ui, "refresh",&tr("Restart now"), Some(accent()), ON_ACCENT, false, true).clicked() {
                                     restart = true;
                                 }
                             } else {
-                                ui.label(egui::RichText::new(format!("Saved to {}", path.display())).size(13.5));
+                                ui.label(egui::RichText::new(trf("Saved to {path}", &[("path", &path.display().to_string())])).size(13.5));
                             }
                         }
                     }
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         let (r, resp) = ui.allocate_exact_size(vec2(28.0, 28.0), Sense::click());
-                        let resp = resp.on_hover_cursor(egui::CursorIcon::PointingHand).on_hover_text("Hide for now");
+                        let resp = resp.on_hover_cursor(egui::CursorIcon::PointingHand).on_hover_text(tr("Hide for now"));
                         if resp.hovered() {
                             ui.painter().circle_filled(r.center(), 14.0, ov(30));
                         }
@@ -141,14 +141,14 @@ impl App {
         }
         if self.update_notes_open {
             let mut open = true;
-            egui::Window::new(format!("What's new in {}", rel.version))
+            egui::Window::new(trf("What's new in {version}", &[("version", &rel.version)]))
                 .open(&mut open)
                 .default_width(460.0)
                 .show(ui.ctx(), |ui| {
                     egui::ScrollArea::vertical().max_height(320.0).show(ui, |ui| {
                         ui.label(egui::RichText::new(&rel.notes).size(13.5));
                     });
-                    if !rel.page.is_empty() && ui.link("Open the release page").clicked() {
+                    if !rel.page.is_empty() && ui.link(tr("Open the release page")).clicked() {
                         crate::platform::open_url(&rel.page);
                     }
                 });

@@ -180,11 +180,11 @@ pub(crate) fn comment_row(ui: &mut egui::Ui, c: &Comment, small: bool, replies_o
                 if c.reply_token.is_some() {
                     ui.add_space(10.0);
                     let label = if c.replies.is_empty() || c.replies == "0" {
-                        "Replies".to_string()
+                        tr("Replies")
                     } else if c.replies == "1" {
-                        "1 reply".to_string()
+                        trf("{count} reply", &[("count", &c.replies)])
                     } else {
-                        format!("{} replies", c.replies)
+                        trf("{count} replies", &[("count", &c.replies)])
                     };
                     let tw = ui.fonts_mut(|f| {
                         f.layout_no_wrap(label.clone(), FontId::proportional(13.0), ink()).size().x

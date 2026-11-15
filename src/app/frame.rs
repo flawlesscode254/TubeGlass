@@ -15,7 +15,7 @@ impl eframe::App for App {
     /// written to the crash log and the next frame simply tries again.
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         if std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| self.draw(ui))).is_err() {
-            self.toast("Something went wrong on this page (details are in crash.log)".to_string());
+            self.toast(tr("Something went wrong on this page (details are in crash.log)"));
             // a page that panics every frame would spin: go back to a safe page after a repeat
             self.panics += 1;
             if self.panics >= 3 {
@@ -79,7 +79,7 @@ impl App {
                 if watching && !self.player.paused {
                     self.player.toggle_pause();
                 }
-                self.toast("Sleep timer: playback paused");
+                self.toast(tr("Sleep timer: playback paused"));
             } else {
                 ctx.request_repaint_after(Duration::from_secs(1));
             }
@@ -170,8 +170,8 @@ impl App {
                 .frame(egui::Frame::new().fill(Color32::from_rgb(70, 48, 18)).inner_margin(egui::Margin::symmetric(24, 6)))
                 .show(ui, |ui| {
                     ui.horizontal_centered(|ui| {
-                        ui.label(egui::RichText::new("You're offline — downloads, history and saved playlists still work.").size(13.5).color(Color32::from_rgb(255, 214, 160)));
-                        if self.sel != Sel::Downloads && ui.add(egui::Button::new("Open downloads").small()).clicked() {
+                        ui.label(egui::RichText::new(tr("You're offline — downloads, history and saved playlists still work.")).size(13.5).color(Color32::from_rgb(255, 214, 160)));
+                        if self.sel != Sel::Downloads && ui.add(egui::Button::new(tr("Open downloads")).small()).clicked() {
                             self.sel = Sel::Downloads;
                         }
                     });
