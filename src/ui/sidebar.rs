@@ -361,7 +361,7 @@ impl App {
                     "watchlater" => "clock",
                     _ => "list",
                 };
-                let label = format!("{}  ({})", l.name, l.videos.len());
+                let label = format!("{}  ({})", playlist_label(l), l.videos.len());
                 let r = sidebar_row(ui, &label, None, icon, is_sel, false, compact);
                 if r.clicked() {
                     new_sel = Some(Sel::Local(l.id.clone()));

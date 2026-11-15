@@ -716,7 +716,7 @@ fn song_rows(
             ui.menu_button(tr("Add to playlist"), |ui| {
                 for l in lists {
                     let has = l.videos.iter().any(|x| x.id == v.id);
-                    if ui.selectable_label(has, l.name.clone()).clicked() {
+                    if ui.selectable_label(has, playlist_label(l)).clicked() {
                         *act = Some((v.clone(), MAct::Toggle(l.id.clone())));
                         ui.close();
                     }

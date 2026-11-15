@@ -56,7 +56,7 @@ impl App {
                 }
             }
             if let Some(ts) = app.fcache.updated.get(&ch.id) {
-                ui.label(egui::RichText::new(trf("Updated {time}", &[("time", &ago(*ts))])).size(13.0).color(muted()));
+                ui.label(egui::RichText::new(trf("Updated {time}", &[("time", &localized_ago(*ts))])).size(13.0).color(muted()));
             }
         };
         ui.horizontal(|ui| {

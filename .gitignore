@@ -11,3 +11,7 @@
 # local state (never commit personal data)
 *.log
 /tubeglass-backup*.json
+
+# Python locale tooling
+__pycache__/
+*.pyc

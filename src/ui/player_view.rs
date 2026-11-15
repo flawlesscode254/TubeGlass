@@ -941,13 +941,13 @@ impl App {
                 }
                 let sr = slot("playlist");
                 let in_any = self.lists.iter().any(|l| l.videos.iter().any(|x| x.id == w.id));
-                let playlist_label = tr(if in_any { "Saved" } else { "Playlist" });
+                let playlist_button_label = tr(if in_any { "Saved" } else { "Playlist" });
                 let sresp = pill(
                     ui,
                     sr,
                     "plbtn",
                     if in_any { "heart_fill" } else { "playlist_add" },
-                    &playlist_label,
+                    &playlist_button_label,
                     true,
                     if in_any { accent() } else { idle },
                     t,
@@ -956,7 +956,7 @@ impl App {
                     ui.set_min_width(190.0);
                     for l in &self.lists {
                         let has = l.videos.iter().any(|x| x.id == w.id);
-                        if ui.selectable_label(has, l.name.clone()).clicked() {
+                        if ui.selectable_label(has, playlist_label(l)).clicked() {
                             list_toggle = Some((l.id.clone(), w.clone()));
                             ui.close();
                         }

@@ -154,7 +154,7 @@ pub(crate) fn video_card(ui: &mut egui::Ui, rect: Rect, th: f32, v: &Video, info
         ui.menu_button(tr("Add to playlist"), |ui| {
             for l in info.lists {
                 let has = l.videos.iter().any(|x| x.id == v.id);
-                if ui.selectable_label(has, l.name.clone()).clicked() {
+                if ui.selectable_label(has, playlist_label(l)).clicked() {
                     act = Some(CardAction::ToggleList(l.id.clone()));
                     ui.close();
                 }

@@ -18,6 +18,17 @@ pub(crate) fn now_secs() -> u64 {
 
 /// "5 min ago" style text for a unix time.
 pub(crate) fn ago(ts: u64) -> String {
+    let d = now_secs().saturating_sub(ts);
+    match d {
+        0..=59 => "just now".into(),
+        60..=3599 => format!("{} min ago", d / 60),
+        3600..=86399 => format!("{} h ago", d / 3600),
+        _ => format!("{} d ago", d / 86400),
+    }
+}
+
+/// Localized relative age for app-authored UI labels.
+pub(crate) fn localized_ago(ts: u64) -> String {
     ago_at(ts, now_secs())
 }
 

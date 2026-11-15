@@ -549,5 +549,6 @@
   "just now": "just now",
   "{count} min ago": "{count} min ago",
   "{count} h ago": "{count} h ago",
-  "{count} d ago": "{count} d ago"
+  "{count} d ago": "{count} d ago",
+  "Favorites": "Favorites"
 }

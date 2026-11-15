@@ -549,5 +549,6 @@
   "just now": "baru saja",
   "{count} min ago": "{count} mnt lalu",
   "{count} h ago": "{count} jam lalu",
-  "{count} d ago": "{count} hari lalu"
+  "{count} d ago": "{count} hari lalu",
+  "Favorites": "Favorit"
 }

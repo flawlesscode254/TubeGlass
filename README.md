@@ -399,6 +399,21 @@ CI runs the same on Linux, Windows and macOS. Please keep commits focused with a
 *what* changed and *why*. If you find a video that will not play, include its link and the output of
 **Settings → Check YouTube access**.
 
+### Translating the interface
+
+Choose a UI language in Settings. System follows the system locale and falls back to English.
+The UI language is separate from YouTube content and captions.
+
+Run `python scripts/new-locale.py CODE "Language name"` to scaffold a catalog, or edit an
+existing file in `locales/`. Keep the English keys and the names and counts of placeholders
+such as `{count}`. Use `{{` and `}}` for literal braces. Blank or missing translations fall
+back to English. When adding a UI string, add its key to `locales/en.json` and translate it
+in `locales/id.json`.
+
+Run `python scripts/new-locale.py --coverage` to check coverage,
+`python scripts/test_new_locale.py` to test the scaffolder, and
+`cargo test --release --locked` to validate catalogs and placeholder rendering.
+
 ## Releasing
 
 1. Raise `version` in `Cargo.toml` and commit it.
