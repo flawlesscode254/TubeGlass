@@ -104,6 +104,7 @@ impl App {
             music_home: None,
             music_page: None,
             music_shuffle_next: false,
+            music_backdrop: Default::default(),
             amb_active: false,
             amb_vr: Rect::NOTHING,
             win: load_win(),

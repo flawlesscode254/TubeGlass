@@ -118,10 +118,10 @@ impl App {
             surface::background(&bgp, ctx.content_rect());
         }
         let in_player = watching && !self.pip;
-        if !in_player {
+        if !in_player || self.player.audio_only() {
             self.amb_active = false;
         }
-        if in_player && self.amb_active {
+        if in_player && self.amb_active && !self.player.audio_only() && self.settings.ambient && !LIGHT.load(std::sync::atomic::Ordering::Relaxed) {
             self.draw_ambient(ctx);
         }
         let amb_ui = in_player && self.amb_active;

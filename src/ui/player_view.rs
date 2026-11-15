@@ -3,11 +3,89 @@
 use crate::*;
 
 impl App {
+    /// Artwork, spectrum and measured lyrics share a bounded vertical stack.
+    fn music_stage(&mut self, ui: &mut egui::Ui, full: Rect) {
+        use crate::ui::music_stage::StageLayout;
+        let uri = self.watching.as_ref().map(|w| img_uri(ui.ctx(), &w.thumb)).unwrap_or_default();
+        let image = if uri.is_empty() {
+            None
+        } else {
+            match ui.ctx().try_load_image(&uri, egui::load::SizeHint::default()) {
+                Ok(egui::load::ImagePoll::Ready { image }) => Some(image),
+                _ => None,
+            }
+        };
+        let identity = self.watching.as_ref().map(|w| format!("{}|{}|{uri}", w.id, w.thumb)).unwrap_or_default();
+        self.music_backdrop.update(ui.ctx(), &identity, image.clone(), self.settings.ambient);
+        let painter = ui.painter().with_clip_rect(full.intersect(ui.clip_rect()));
+        painter.rect_filled(full, 0.0, Color32::from_rgb(10, 10, 15));
+        if self.settings.ambient {
+            self.music_backdrop.paint(&painter, full);
+        }
+
+        self.ensure_lyrics();
+        let mut lines = self.current_lyric_window().unwrap_or_default();
+        if full.height() < 720.0 {
+            let active = lines.iter().position(|(_, _, role)| *role == 1).unwrap_or(0);
+            let start = active.saturating_sub(1);
+            lines = lines.into_iter().skip(start).take(3).collect();
+        }
+        let max_width = (full.width() - 48.0).clamp(1.0, 760.0);
+        let text_scale = (full.height() / 800.0).clamp(0.8, 1.15);
+        let mut galleys = Vec::new();
+        for (k, text, role) in &lines {
+            let (size, color) = match role {
+                1 => (28.0, accent()),
+                0 => (18.0, Color32::from_gray(135)),
+                _ => (19.0, Color32::from_gray((190.0 - 23.0 * (*k as f32 - 2.0).max(0.0)).max(105.0) as u8)),
+            };
+            let mut job = egui::text::LayoutJob::simple(text.clone(), FontId::proportional(size * text_scale), color, max_width);
+            job.wrap.max_rows = if *role == 1 { 2 } else { 1 };
+            job.halign = egui::Align::Center;
+            galleys.push(ui.fonts_mut(|f| f.layout_job(job)));
+        }
+        let gap = 10.0 * text_scale;
+        let lyrics_height = galleys.iter().map(|g| g.size().y).sum::<f32>()
+            + gap * galleys.len().saturating_sub(1) as f32;
+        let aspect = image.as_ref().map_or(1.0, |im| im.size[0] as f32 / im.size[1].max(1) as f32);
+        let layout = StageLayout::new(full, aspect, lyrics_height);
+        if image.is_some() {
+            egui::Image::new(uri).fit_to_exact_size(layout.art.size())
+                .corner_radius(CornerRadius::same(12)).paint_at(ui, layout.art);
+        } else {
+            painter.image(self.logo.id(), layout.art,
+                Rect::from_min_max(Pos2::ZERO, Pos2::new(1.0, 1.0)), Color32::WHITE);
+        }
+        let n = self.viz_levels.len();
+        let slot = layout.spectrum.width() / n.max(1) as f32;
+        let base = layout.spectrum.bottom() - 10.0;
+        for (i, level) in self.viz_levels.iter().enumerate() {
+            let f = i as f32 / n.saturating_sub(1).max(1) as f32;
+            let a = accent();
+            let b = accent2();
+            let mix = |x: u8, y: u8| (x as f32 + (y as f32 - x as f32) * f) as u8;
+            let color = Color32::from_rgb(mix(a.r(), b.r()), mix(a.g(), b.g()), mix(a.b(), b.b()));
+            let height = (level.powf(1.1) * (layout.spectrum.height() - 12.0).max(0.0)).max(2.0).min(layout.spectrum.height());
+            let x = layout.spectrum.left() + slot * (i as f32 + 0.15);
+            let bar = Rect::from_min_size(Pos2::new(x, base - height), vec2(slot * 0.7, height));
+            painter.rect_filled(bar, CornerRadius::same(2), color);
+            let reflection = Rect::from_min_size(Pos2::new(x, base + 2.0), vec2(slot * 0.7, 8.0));
+            vgradient(&painter, reflection, color.gamma_multiply(0.16), Color32::TRANSPARENT);
+        }
+        let lyric_painter = painter.with_clip_rect(layout.lyrics.intersect(painter.clip_rect()));
+        let mut y = layout.lyrics.top();
+        for galley in galleys {
+            let height = galley.size().y;
+            crate::ui::music_stage::paint_lyric(&lyric_painter, layout.lyrics, y, galley);
+            y += height + gap;
+        }
+    }
+
     /// Draws the player page: the picture or audio visualizer, captions and the control bars.
     pub(crate) fn player_view(&mut self, ui: &mut egui::Ui) {
         let ctx = ui.ctx().clone();
         let full = ui.available_rect_before_wrap();
-        if !self.amb_active {
+        if !self.amb_active || self.player.audio_only() {
             ui.painter().rect_filled(full, 0.0, Color32::BLACK);
         }
         let resp = ui.allocate_rect(full, Sense::click());
@@ -73,110 +151,7 @@ impl App {
                 // spoken word gets its own look: a round cover ringed by a rotating halo
                 self.pod_visual(ui, full);
             } else {
-            let w = (full.width() - 120.0).clamp(240.0, 900.0);
-            // with synced lyrics available the artwork and bars move up and shrink to leave a
-            // lyrics strip below them
-            self.ensure_lyrics();
-            let lyr_lines = self.current_lyric_window();
-            let compact = lyr_lines.is_some() && full.height() >= 460.0;
-            // everything scales with the room above the controls
-            let usable = (full.height() - 110.0).max(300.0);
-            let sc = (usable / 560.0).clamp(1.0, 1.7);
-            // lyrics block geometry first, so the art and bars can be spaced evenly above it
-            let lyr_spec = |k: usize, role: u8| -> (f32, Color32) {
-                match role {
-                    0 => (11.5 * sc, ink().gamma_multiply(0.45)),
-                    1 => (18.0 * sc, accent()),
-                    _ => (12.5 * sc, ink().gamma_multiply((0.72 - 0.12 * (k as f32 - 2.0).max(0.0)).max(0.18))),
-                }
-            };
-            let lyr_gap = 9.0 * sc;
-            let lyr_total: f32 = lyr_lines
-                .as_ref()
-                .map(|l| l.iter().map(|(k, _, r)| lyr_spec(*k, *r).0 + lyr_gap).sum::<f32>() - lyr_gap)
-                .unwrap_or(0.0);
-            let lyr_top = full.max.y - 100.0 - 30.0 * sc - lyr_total;
-            // art, bars and lyrics sit one above the other with equal gaps (also above the art)
-            let art_h = 90.0 * sc;
-            let bars_h = (usable * 0.26).clamp(150.0, 300.0);
-            let visible_bars = bars_h - 14.0;
-            let y_start = full.min.y + 62.0;
-            let even = ((lyr_top - y_start - art_h - visible_bars) / 3.0).max(12.0);
-            let art_cy = y_start + even + art_h / 2.0;
-            let bars_top = y_start + even + art_h + even;
-            let area = if compact {
-                Rect::from_min_size(Pos2::new(full.center().x - w / 2.0, bars_top - 10.0), vec2(w, bars_h))
-            } else {
-                Rect::from_center_size(full.center() + vec2(0.0, 70.0), vec2(w, 230.0))
-            };
-            let energy = self.viz_levels.iter().sum::<f32>() / self.viz_levels.len() as f32;
-            let n = self.viz_levels.len();
-            let slot = area.width() / n as f32;
-            let base = area.bottom() - 40.0;
-            let max_h = area.height() - 50.0;
-            for (i, lvl) in self.viz_levels.iter().enumerate() {
-                let f = i as f32 / (n - 1) as f32;
-                let col = Color32::from_rgb(
-                    (accent().r() as f32 + (accent2().r() as f32 - accent().r() as f32) * f) as u8,
-                    (accent().g() as f32 + (accent2().g() as f32 - accent().g() as f32) * f) as u8,
-                    (accent().b() as f32 + (accent2().b() as f32 - accent().b() as f32) * f) as u8,
-                );
-                let h = (lvl.powf(1.1) * max_h).max(3.0);
-                let x = area.left() + i as f32 * slot + slot * 0.15;
-                let bar = Rect::from_min_size(Pos2::new(x, base - h), vec2(slot * 0.7, h));
-                ui.painter().rect_filled(bar, CornerRadius::same(3), col);
-                // reflection
-                let rh = (h * 0.35).min(36.0);
-                let refl = Rect::from_min_size(Pos2::new(x, base + 3.0), vec2(slot * 0.7, rh));
-                vgradient(ui.painter(), refl, col.gamma_multiply(0.30), Color32::TRANSPARENT);
-            }
-            // cover art when there is one; otherwise the app icon, gently pulsing with the music
-            let art_uri = self
-                .watching
-                .as_ref()
-                .map(|w| {
-                    if crate::platform::is_local_path(&w.thumb) {
-                        crate::platform::file_uri(&w.thumb)
-                    } else if w.thumb.is_empty() {
-                        String::new()
-                    } else {
-                        img_uri(ui.ctx(), &w.thumb)
-                    }
-                })
-                .unwrap_or_default();
-            let art_center = Pos2::new(full.center().x, if compact { art_cy } else { area.top() - 74.0 });
-            if !art_uri.is_empty() {
-                let art = Rect::from_center_size(art_center, if compact { vec2(160.0, 90.0) * sc } else { vec2(224.0, 126.0) });
-                ui.painter().rect_filled(art, CornerRadius::same(16), card());
-                egui::Image::new(art_uri)
-                    .fit_to_exact_size(art.size())
-                    .corner_radius(CornerRadius::same(16))
-                    .paint_at(ui, art);
-            } else {
-                let size = (if compact { 88.0 * sc } else { 124.0 }) * (1.0 + 0.07 * energy.min(0.7));
-                let icon = Rect::from_center_size(art_center, vec2(size, size));
-                ui.painter().image(
-                    self.logo.id(),
-                    icon,
-                    Rect::from_min_max(Pos2::ZERO, Pos2::new(1.0, 1.0)),
-                    Color32::WHITE,
-                );
-            }
-            if compact {
-                // previous / current / next lines, centred and anchored just above the controls
-                if let Some(lines) = lyr_lines {
-                    let max_w = w.min(full.width() - 60.0);
-                    let mut y = lyr_top;
-                    for (k, text, role) in lines {
-                        let (size, col) = lyr_spec(k, role);
-                        let shown = truncate(ui, &text, FontId::proportional(size), max_w, 1);
-                        ui.painter().text(Pos2::new(full.center().x, y), Align2::CENTER_TOP, shown, FontId::proportional(size), col);
-                        y += size + lyr_gap;
-                    }
-                }
-            } else {
-        icon_label(ui, area.center_bottom() + vec2(0.0, 6.0), "note", &tr("Audio"), muted(), false);
-            }
+                self.music_stage(ui, full);
             }
         }
         if let Some(tex) = self.player.texture() {
@@ -289,12 +264,18 @@ impl App {
             let top = Rect::from_min_size(full.min, vec2(full.width(), 84.0));
             vgradient(ui.painter(), top, Color32::from_black_alpha((t * 170.0) as u8), Color32::TRANSPARENT);
             let bar = Rect::from_min_max(Pos2::new(full.min.x, full.max.y - 100.0), full.max);
-            let bar_a = if ambient { 150.0 } else { 242.0 };
-            ui.painter().rect_filled(bar, 0.0, Color32::from_rgba_unmultiplied(13, 20, 23, (t * bar_a) as u8));
-            ui.painter().line_segment(
-                [bar.left_top(), bar.right_top()],
-                Stroke::new(1.0, ov((t * 20.0) as u8)),
-            );
+            let music_stage = self.player.audio_only()
+                && !self.watching.as_ref().is_some_and(|w| w.id.starts_with("pod:"));
+            if music_stage {
+                vgradient(ui.painter(), bar, Color32::TRANSPARENT, Color32::from_black_alpha((t * 220.0) as u8));
+            } else {
+                let bar_a = if ambient { 150.0 } else { 242.0 };
+                ui.painter().rect_filled(bar, 0.0, Color32::from_rgba_unmultiplied(13, 20, 23, (t * bar_a) as u8));
+                ui.painter().line_segment(
+                    [bar.left_top(), bar.right_top()],
+                    Stroke::new(1.0, ov((t * 20.0) as u8)),
+                );
+            }
             // top bar
             let back = Rect::from_min_size(full.min + vec2(18.0, 18.0), vec2(40.0, 40.0));
             let br = ui.interact(back, uid("back"), Sense::click()).on_hover_cursor(egui::CursorIcon::PointingHand);

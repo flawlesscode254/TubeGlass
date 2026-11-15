@@ -95,6 +95,7 @@ pub(crate) struct App {
     pub(crate) music_home: Option<Result<ytmusic::Page, String>>,
     pub(crate) music_page: Option<(String, Option<Result<ytmusic::Page, String>>)>,
     pub(crate) music_shuffle_next: bool,
+    pub(crate) music_backdrop: crate::ui::music_stage::MusicBackdrop,
     pub(crate) amb_active: bool,
     pub(crate) amb_vr: Rect,
     pub(crate) win: WinState,

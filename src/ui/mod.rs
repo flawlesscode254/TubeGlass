@@ -8,6 +8,7 @@ pub mod sidebar;
 pub mod cards;
 pub mod dialogs;
 pub mod ambient;
+pub mod music_stage;
 pub mod settings_view;
 pub mod downloads_view;
 pub mod grid;
