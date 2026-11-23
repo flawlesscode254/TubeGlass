@@ -99,18 +99,31 @@ impl App {
                         Ok((name, videos)) if !videos.is_empty() => {
                             let n = videos.len();
                             let single = self.import_list.as_ref().is_some_and(|(t, _)| playlist_ids(t).len() == 1);
+                            // what the source had at import time counts as seen, so a sync adds only later items
+                            for v in &videos {
+                                self.settings.sync_seen.insert(format!("pl:{id}:{}", v.id));
+                            }
+                            let lid;
                             if single {
                                 self.save_playlist_locally(name, videos);
+                                lid = match &self.sel {
+                                    Sel::Local(l) => l.clone(),
+                                    _ => String::new(),
+                                };
                             } else {
                                 let mut name = name;
                                 if self.lists.iter().any(|l| l.name == name) {
                                     name = format!("{name} (copy)");
                                 }
-                                let lid = format!("pl-{}-{}", now_secs(), self.lists.len());
-                                self.lists.push(LocalList { id: lid, name: name.clone(), videos, offline: false });
+                                lid = format!("pl-{}-{}", now_secs(), self.lists.len());
+                                self.lists.push(LocalList { id: lid.clone(), name: name.clone(), videos, offline: false });
                                 save_lists(&self.lists);
                                 self.toast(format!("Imported “{name}” with {n} videos"));
                             }
+                            if !lid.is_empty() {
+                                self.settings.imported_lists.insert(id.clone(), lid);
+                            }
+                            self.save_settings();
                         }
                         Ok(_) => self.toast("That playlist has no videos (or it is private)".to_string()),
                         Err(e) => self.toast(format!("Could not import {id}: {e}")),
@@ -186,6 +199,43 @@ impl App {
                             std::thread::sleep(Duration::from_millis(250));
                         }
                     });
+                }
+                Msg::AcctLooked(r) => {
+                    if let Some(d) = self.acct.as_mut() {
+                        d.loading = false;
+                        match r {
+                            Ok(snap) => {
+                                d.pick_ch = snap.channels.iter().map(|h| !self.channels.iter().any(|c| c.id == h.channel.id)).collect();
+                                d.pick_pl = snap.playlists.iter().map(|p| !self.settings.imported_lists.contains_key(&p.id)).collect();
+                                d.snap = Some(snap);
+                            }
+                            Err(e) => d.err = Some(e),
+                        }
+                    }
+                }
+                Msg::AcctSynced(r) => {
+                    self.syncing = false;
+                    match r {
+                        Ok(snap) => self.apply_sync(snap),
+                        Err(e) => self.sync_note = format!("Could not check the account: {e}"),
+                    }
+                }
+                Msg::SyncList(pid, lid, r) => self.apply_sync_list(pid, lid, r),
+                Msg::BackupPicked(text) => {
+                    if let Some(t) = text {
+                        self.open_profile_dialog(&t);
+                    }
+                }
+                Msg::Cues2(key, r) => {
+                    if self.cc2_key == key {
+                        match r {
+                            Ok(c) => self.cues2 = c,
+                            Err(e) => {
+                                self.cues2.clear();
+                                self.toast(format!("Second captions unavailable: {e}"));
+                            }
+                        }
+                    }
                 }
                 Msg::Cues(vid, idx, r) => {
                     if self.cc_for == vid && self.cc_track == Some(idx) {

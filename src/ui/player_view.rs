@@ -188,25 +188,35 @@ impl App {
             );
         }
 
-        // captions
-        if self.cc_track.is_some() && !self.cues.is_empty() {
+        // captions: the main track and, when switched on, a second language (Netflix style: at
+        // most 42 characters a line, white text on a dark box)
+        {
             let pos = self.player.position();
-            let idx = self.cues.partition_point(|c| c.start <= pos);
-            if idx > 0 {
-                let cue = &self.cues[idx - 1];
-                if pos < cue.end {
-                    let size = (vr.width() / 38.0).clamp(15.0, 30.0);
-                    let galley = ui.fonts_mut(|f| {
-                        f.layout(cue.text.clone(), FontId::proportional(size), Color32::WHITE, vr.width() * 0.72)
-                    });
-                    let bottom = full.max.y - if t > 0.05 { 124.0 } else { 40.0 };
-                    let r = Rect::from_center_size(
-                        Pos2::new(vr.center().x, bottom - galley.size().y / 2.0 - 8.0),
-                        galley.size() + vec2(24.0, 14.0),
-                    );
-                    ui.painter().rect_filled(r, CornerRadius::same(8), Color32::from_black_alpha(185));
-                    ui.painter().galley(r.min + vec2(12.0, 7.0), galley, Color32::WHITE);
-                }
+            let st = &self.settings;
+            let main = if self.cc_track.is_some() { cue_at(&self.cues, pos) } else { None };
+            let second = if st.cc2_on && !self.cc2_key.is_empty() { cue_at(&self.cues2, pos) } else { None };
+            let colour = |c: [u8; 3], a: u8| Color32::from_rgba_unmultiplied(c[0], c[1], c[2], a);
+            let base = (vr.width() / 38.0).clamp(15.0, 30.0);
+            let mut blocks: Vec<(String, f32, Color32)> = vec![];
+            if let Some(c) = main {
+                blocks.push((netflix_lines(&c.text).join("\n"), base * st.cc1_size, colour(st.cc1_color, st.cc1_alpha)));
+            }
+            if let Some(c) = second {
+                let b = (netflix_lines(&c.text).join("\n"), base * st.cc2_size, colour(st.cc2_color, st.cc2_alpha));
+                // the main track goes on top unless the order is swapped
+                if st.cc2_swap { blocks.insert(0, b) } else { blocks.push(b) }
+            }
+            let bg = st.cc_bg;
+            let mut bottom = full.max.y - if t > 0.05 { 124.0 } else { 40.0 };
+            for (text, size, col) in blocks.into_iter().rev() {
+                let galley = ui.fonts_mut(|f| f.layout(text, FontId::proportional(size), col, vr.width() * 0.9));
+                let r = Rect::from_center_size(
+                    Pos2::new(vr.center().x, bottom - galley.size().y / 2.0 - 8.0),
+                    galley.size() + vec2(24.0, 14.0),
+                );
+                ui.painter().rect_filled(r, CornerRadius::same(8), Color32::from_black_alpha(bg));
+                ui.painter().galley(r.min + vec2(12.0, 7.0), galley, col);
+                bottom = r.min.y - 4.0;
             }
         }
 
@@ -269,6 +279,10 @@ impl App {
         let mut open_channel: Option<Video> = None;
         let mut set_cc: Option<Option<usize>> = None;
         let mut translate: Option<(&'static str, &'static str)> = None;
+        // the second caption language: Some(None) turns it off, Some(Some(code)) picks one
+        let mut set_cc2: Option<Option<&'static str>> = None;
+        let mut swap_cc2 = false;
+        let mut cc_style = false;
         let mut open_clip = false;
         let mut skip_prev = false;
         let mut skip_next = false;
@@ -730,14 +744,40 @@ impl App {
             let ctracks: Vec<yt::CaptionTrack> = self.player.streams.as_ref().map(|s| s.captions.clone()).unwrap_or_default();
             if !ctracks.is_empty() && (!is_local || is_pod) {
                 let ccr = slot("cc");
-                let on = self.cc_track.is_some();
+                let on = self.cc_track.is_some() || self.settings.cc2_on;
                 let ccresp = pill(ui, ccr, "ccpill", "cc", "", false, if on { accent() } else { idle }, t);
                 egui::Popup::menu(&ccresp).show(|ui| {
-                    ui.set_min_width(200.0);
+                    ui.set_min_width(220.0);
+                    ui.set_max_height(430.0);
+                    egui::ScrollArea::vertical().show(ui, |ui| {
                     if ui.selectable_label(self.cc_track.is_none(), "Off").clicked() {
                         set_cc = Some(None);
                         ui.close();
                     }
+                    // a second language shown with the main one, for learning
+                    let cur2 = if self.settings.cc2_on { self.cc2_language() } else { String::new() };
+                    let label2 = TRANSLATE_TO.iter().find(|(c, _)| *c == cur2).map_or("Second language…".to_string(), |(_, n)| format!("Second language: {n}"));
+                    ui.menu_button(label2, |ui| {
+                        if ui.selectable_label(cur2.is_empty(), "Off  (S)").clicked() {
+                            set_cc2 = Some(None);
+                            ui.close();
+                        }
+                        for (code, name) in TRANSLATE_TO {
+                            if ui.selectable_label(cur2 == *code, *name).clicked() {
+                                set_cc2 = Some(Some(*code));
+                                ui.close();
+                            }
+                        }
+                    });
+                    if self.settings.cc2_on && ui.selectable_label(self.settings.cc2_swap, "Second language on top").clicked() {
+                        swap_cc2 = true;
+                        ui.close();
+                    }
+                    if ui.button("Caption style…").clicked() {
+                        cc_style = true;
+                        ui.close();
+                    }
+                    ui.separator();
                     for (i, tr) in ctracks.iter().enumerate() {
                         if ui.selectable_label(self.cc_track == Some(i), &tr.name).clicked() {
                             set_cc = Some(Some(i));
@@ -761,6 +801,7 @@ impl App {
                             }
                         });
                     }
+                    });
                 });
             }
             // more: repeat, shuffle, sleep timer, shortcuts
@@ -962,32 +1003,42 @@ impl App {
             self.open_clip_tab();
         }
         if let Some((code, name)) = translate {
-            // translate the track being shown, or the first one (usually the original language)
-            let tracks: Vec<yt::CaptionTrack> = self.player.streams.as_ref().map(|s| s.captions.clone()).unwrap_or_default();
-            let base = self.cc_track.filter(|i| *i < tracks.len()).unwrap_or(0);
-            if let (Some(tr), Some(w)) = (tracks.get(base), self.watching.as_ref()) {
-                let url = format!("{}&tlang={code}", tr.url);
-                self.cc_track = Some(usize::MAX);
-                self.cc_translated = Some(code.to_string());
-                self.cues.clear();
-                let (tx, ctx, vid) = (self.tx.clone(), self.ctx.clone(), w.id.clone());
-                std::thread::spawn(move || {
-                    let r = yt::caption_cues(&url);
-                    let _ = tx.send(Msg::Cues(vid, usize::MAX, r));
-                    ctx.request_repaint();
-                });
-                self.toast(format!("Translating captions to {name}"));
-            }
+            self.start_translated_cues(code);
+            self.remember_caption_language(code);
+            self.toast(format!("Translating captions to {name}"));
         }
         if let Some(c) = set_cc {
             self.cc_translated = None;
             match c {
-                Some(i) => self.load_cues(i),
+                Some(i) => {
+                    self.load_cues(i);
+                    let lang = self.player.streams.as_ref().and_then(|s| s.captions.get(i)).map(|t| t.lang.clone());
+                    if let Some(l) = lang {
+                        self.remember_caption_language(&l);
+                    }
+                }
                 None => {
                     self.cc_track = None;
                     self.cues.clear();
+                    self.remember_caption_language("");
                 }
             }
+        }
+        match set_cc2 {
+            Some(Some(code)) => self.set_second_language(code),
+            Some(None) => {
+                self.settings.cc2_on = false;
+                self.save_settings();
+            }
+            None => {}
+        }
+        if swap_cc2 {
+            self.settings.cc2_swap = !self.settings.cc2_swap;
+            self.save_settings();
+        }
+        if cc_style {
+            self.sel = Sel::Settings;
+            self.back_from_player();
         }
         if toggle_ambient {
             self.settings.ambient = !self.settings.ambient;

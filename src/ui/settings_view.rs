@@ -13,6 +13,9 @@ impl App {
         let mut clear_cache = false;
         let mut clear_history = false;
         let mut import_subs = false;
+        let mut open_account = false;
+        let mut sync_now = false;
+        let mut pick_backup = false;
         let mut export_subs = false;
         let mut backup = false;
         let mut restore = false;
@@ -204,6 +207,63 @@ impl App {
                         changed = true;
                     }
                 });
+                row(ui, "Second language", "Shown with the main captions, for learning (key S). Translated by YouTube when the creator has not published it", &mut |ui| {
+                    let cur = TRANSLATE_TO.iter().find(|(c, _)| *c == self.settings.cc2_lang).map_or("None", |(_, n)| *n);
+                    egui::ComboBox::from_id_salt("cc2lang").selected_text(cur).show_ui(ui, |ui| {
+                        for (code, name) in TRANSLATE_TO {
+                            if ui.selectable_label(self.settings.cc2_lang == *code, *name).clicked() {
+                                self.settings.cc2_lang = code.to_string();
+                                self.settings.cc2_on = true;
+                                changed = true;
+                            }
+                        }
+                    });
+                    changed |= switch(ui, &mut self.settings.cc2_on);
+                });
+                row(ui, "Second language on top", "Otherwise it goes under the main captions", &mut |ui| {
+                    changed |= switch(ui, &mut self.settings.cc2_swap);
+                });
+                for (label, which) in [("Main captions", 1), ("Second language", 2)] {
+                    row(ui, &format!("{label}: size, colour, opacity"), "", &mut |ui| {
+                        let (size, color, alpha) = if which == 1 {
+                            (&mut self.settings.cc1_size, &mut self.settings.cc1_color, &mut self.settings.cc1_alpha)
+                        } else {
+                            (&mut self.settings.cc2_size, &mut self.settings.cc2_color, &mut self.settings.cc2_alpha)
+                        };
+                        // this row lays out from the right: opacity, colour, then size on the left
+                        let mut a = *alpha as f32 / 255.0;
+                        ui.label(egui::RichText::new(format!("{:.0}%", a * 100.0)).size(13.0).color(muted()));
+                        if pct_slider(ui, &mut a, 0.2, 1.0, 1.0, 110.0) {
+                            *alpha = (a * 255.0).round() as u8;
+                            changed = true;
+                        }
+                        ui.label(egui::RichText::new("Opacity").size(12.0).color(muted()));
+                        changed |= ui.color_edit_button_srgb(color).on_hover_text("Colour").changed();
+                        ui.label(egui::RichText::new(format!("{:.0}%", *size * 100.0)).size(13.0).color(muted()));
+                        changed |= pct_slider(ui, size, 0.6, 1.8, 1.0, 110.0);
+                        ui.label(egui::RichText::new("Size").size(12.0).color(muted()));
+                    });
+                }
+                row(ui, "Box behind captions", "How dark the background of the text is", &mut |ui| {
+                    let mut a = self.settings.cc_bg as f32 / 255.0;
+                    ui.label(egui::RichText::new(format!("{:.0}%", a * 100.0)).size(13.0).color(muted()));
+                    if pct_slider(ui, &mut a, 0.0, 1.0, 1.0, 150.0) {
+                        self.settings.cc_bg = (a * 255.0).round() as u8;
+                        changed = true;
+                    }
+                });
+                row(ui, "Translation service", "Optional, for saved captions and podcast transcripts, which YouTube cannot translate. Any LibreTranslate-compatible address", &mut |ui| {
+                    let r = ui.add(egui::TextEdit::singleline(&mut self.settings.translate_url).hint_text("https://…").desired_width(210.0));
+                    if r.lost_focus() {
+                        changed = true;
+                    }
+                });
+                row(ui, "Translation service key", "Only if the service asks for one", &mut |ui| {
+                    let r = ui.add(egui::TextEdit::singleline(&mut self.settings.translate_key).password(true).desired_width(210.0));
+                    if r.lost_focus() {
+                        changed = true;
+                    }
+                });
             });
             section(ui, "DOWNLOADS", &mut |ui| {
                 row(ui, "Folder", &download::dir().display().to_string(), &mut |ui| {
@@ -294,6 +354,28 @@ impl App {
                     }
                 });
             });
+            section(ui, "YOUTUBE ACCOUNT", &mut |ui| {
+                row(ui, "Import from an account", "Paste a channel link or @handle: its public subscriptions and playlists, with a preview, no sign-in", &mut |ui| {
+                    if ui.button("Import…").clicked() {
+                        open_account = true;
+                    }
+                });
+                let src = if self.settings.sync_source.is_empty() { "No account yet: import one first".to_string() } else { self.settings.sync_source.clone() };
+                let note = if self.syncing { "Checking…".to_string() } else if self.sync_note.is_empty() { src } else { format!("{src}  •  {}", self.sync_note) };
+                row(ui, "Keep in sync", &format!("On refresh, add new subscriptions and new playlist items; nothing is deleted. {note}"), &mut |ui| {
+                    if !self.settings.sync_source.is_empty() && ui.button("Sync now").clicked() {
+                        sync_now = true;
+                    }
+                    if !self.settings.sync_source.is_empty() {
+                        changed |= switch(ui, &mut self.settings.sync_on);
+                    }
+                });
+                row(ui, "Copy from a TubeGlass backup", "Groups, caption language and style, default quality: pick what to bring over from a backup file", &mut |ui| {
+                    if ui.button("Choose backup…").clicked() {
+                        pick_backup = true;
+                    }
+                });
+            });
             section(ui, "NOTIFICATIONS", &mut |ui| {
                 row(ui, "Notify me", "Live streams by default. Right-click a channel to also get new uploads, or to mute it", &mut |ui| {
                     changed |= switch(ui, &mut self.settings.notifications);
@@ -370,6 +452,21 @@ impl App {
             std::thread::spawn(move || {
                 let p = rfd::FileDialog::new().set_title("Download folder").pick_folder();
                 let _ = tx.send(Msg::DirPicked(p.map(|p| p.display().to_string())));
+                ctx.request_repaint();
+            });
+        }
+        if open_account {
+            self.acct = Some(AcctDialog { keep_sync: true, ..Default::default() });
+        }
+        if sync_now {
+            self.sync_account(true);
+        }
+        if pick_backup {
+            let (tx, ctx) = (self.tx.clone(), self.ctx.clone());
+            std::thread::spawn(move || {
+                let picked = rfd::FileDialog::new().set_title("Copy from a TubeGlass backup").add_filter("TubeGlass backup", &["json"]).pick_file();
+                let text = picked.and_then(|p| std::fs::read_to_string(p).ok());
+                let _ = tx.send(Msg::BackupPicked(text));
                 ctx.request_repaint();
             });
         }

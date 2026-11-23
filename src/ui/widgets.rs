@@ -26,6 +26,31 @@ pub(crate) fn db_slider(ui: &mut egui::Ui, v: &mut f32, width: f32) -> bool {
     done
 }
 
+/// A slider in the app's own look for a value between `lo` and `hi`, with its value shown as a
+/// percentage of `unit` (e.g. 1.0 = 100%). Returns true when the value changed.
+pub(crate) fn pct_slider(ui: &mut egui::Ui, v: &mut f32, lo: f32, hi: f32, unit: f32, width: f32) -> bool {
+    let (r, resp) = ui.allocate_exact_size(vec2(width, 24.0), Sense::click_and_drag());
+    let resp = resp.on_hover_cursor(egui::CursorIcon::PointingHand);
+    let (l, rr) = (r.min.x + 8.0, r.max.x - 8.0);
+    let mut changed = false;
+    if let (true, Some(p)) = (resp.is_pointer_button_down_on() || resp.clicked(), resp.interact_pointer_pos()) {
+        let nv = lo + ((p.x - l) / (rr - l)).clamp(0.0, 1.0) * (hi - lo);
+        // whole percents
+        let nv = (nv / unit * 100.0).round() / 100.0 * unit;
+        if (nv - *v).abs() > f32::EPSILON {
+            *v = nv;
+            changed = true;
+        }
+    }
+    let cy = r.center().y;
+    let x = l + ((*v - lo) / (hi - lo)).clamp(0.0, 1.0) * (rr - l);
+    let p = ui.painter();
+    p.rect_filled(Rect::from_min_max(Pos2::new(l, cy - 2.0), Pos2::new(rr, cy + 2.0)), CornerRadius::same(2), ov(34));
+    p.rect_filled(Rect::from_min_max(Pos2::new(l, cy - 2.0), Pos2::new(x, cy + 2.0)), CornerRadius::same(2), accent());
+    p.circle_filled(Pos2::new(x, cy), if resp.hovered() { 9.0 } else { 8.0 }, Color32::WHITE);
+    changed
+}
+
 /// What a text field reports back.
 pub(crate) struct FieldOut {
     pub(crate) resp: egui::Response,

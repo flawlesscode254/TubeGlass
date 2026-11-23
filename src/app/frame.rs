@@ -66,6 +66,8 @@ impl App {
                 && !ctx.egui_wants_keyboard_input()
                 && self.new_list.is_none()
                 && self.import_list.is_none()
+                && self.acct.is_none()
+                && self.profile.is_none()
                 && !self.show_help
                 && (self.watching.is_none() || self.pip);
             if (back_pressed || esc) && self.can_go_back() {
@@ -91,6 +93,7 @@ impl App {
         if watching {
             self.recover_playback();
             self.per_video_setup();
+            self.ensure_cues2();
             self.gapless_tick();
             self.handle_end_of_playback();
             self.record_progress(false);
@@ -225,6 +228,7 @@ impl App {
 
         self.new_list_dialog(ctx);
         self.import_list_dialog(ctx);
+        self.account_dialogs(ctx);
         self.new_group_dialog(ctx);
         self.overlays(ctx);
 

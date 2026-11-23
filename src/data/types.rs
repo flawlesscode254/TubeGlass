@@ -229,6 +229,16 @@ pub(crate) enum Msg {
     MusicSearch(String, ytmusic::SearchKind, Result<ytmusic::Results, String>),
     MusicPage(String, Result<ytmusic::Page, String>),
     Cues(String, usize, Result<Vec<yt::Cue>, String>),
+    /// The second caption track: the key it was asked for (video|language) and the cues.
+    Cues2(String, Result<Vec<yt::Cue>, String>),
+    /// The look-up of an account in the import dialog.
+    AcctLooked(Result<account::Snapshot, String>),
+    /// A background re-check of the synced account.
+    AcctSynced(Result<account::Snapshot, String>),
+    /// Videos of an imported playlist fetched for a sync: (source playlist id, local list id, result).
+    SyncList(String, String, Result<(String, Vec<Video>), String>),
+    /// The text of a TubeGlass backup picked for "copy settings from a backup".
+    BackupPicked(Option<String>),
     Sponsor(String, Result<Vec<yt::SkipSeg>, String>),
     Related(String, Result<Vec<Video>, String>),
     ChannelInfo(String, Channel),

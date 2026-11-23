@@ -615,6 +615,80 @@ impl App {
         });
     }
 
+    /// Shows the captions translated by YouTube into `code`, starting from the track being shown
+    /// (or the first one, usually the original language).
+    pub(crate) fn start_translated_cues(&mut self, code: &str) {
+        let tracks: Vec<yt::CaptionTrack> = self.player.streams.as_ref().map(|s| s.captions.clone()).unwrap_or_default();
+        let base = self.cc_track.filter(|i| *i < tracks.len()).unwrap_or(0);
+        if let (Some(tr), Some(w)) = (tracks.get(base), self.watching.as_ref()) {
+            let url = format!("{}&tlang={code}", tr.url);
+            self.cc_track = Some(usize::MAX);
+            self.cc_translated = Some(code.to_string());
+            self.cues.clear();
+            let (tx, ctx, vid) = (self.tx.clone(), self.ctx.clone(), w.id.clone());
+            std::thread::spawn(move || {
+                let r = yt::caption_cues(&url);
+                let _ = tx.send(Msg::Cues(vid, usize::MAX, r));
+                ctx.request_repaint();
+            });
+        }
+    }
+
+    /// Remembers the caption language for this video's channel ("" forgets it).
+    pub(crate) fn remember_caption_language(&mut self, lang: &str) {
+        if let Some(cid) = self.watching.as_ref().map(|w| w.channel_id.clone()).filter(|c| !c.is_empty()) {
+            self.settings.chan_prefs.entry(cid).or_default().cc1 = lang.to_string();
+            self.save_settings();
+        }
+    }
+
+    /// Switches the second caption track on in `code`, for this channel and as the global default.
+    pub(crate) fn set_second_language(&mut self, code: &str) {
+        self.settings.cc2_on = true;
+        self.settings.cc2_lang = code.to_string();
+        if let Some(cid) = self.watching.as_ref().map(|w| w.channel_id.clone()).filter(|c| !c.is_empty()) {
+            self.settings.chan_prefs.entry(cid).or_default().cc2 = code.to_string();
+        }
+        self.cc2_key.clear();
+        self.save_settings();
+    }
+
+    /// The second caption language for this video: the one remembered for its channel, else the global one.
+    pub(crate) fn cc2_language(&self) -> String {
+        let chan = self.watching.as_ref().and_then(|w| self.settings.chan_prefs.get(&w.channel_id)).map(|p| p.cc2.clone()).unwrap_or_default();
+        if chan.is_empty() { self.settings.cc2_lang.clone() } else { chan }
+    }
+
+    /// Loads the second caption track when it is switched on and not loaded yet for this video.
+    pub(crate) fn ensure_cues2(&mut self) {
+        let Some(w) = self.watching.clone() else { return };
+        let lang = self.cc2_language();
+        let off = !self.settings.cc2_on || lang.is_empty() || self.player.is_live();
+        if off {
+            if !self.cues2.is_empty() {
+                self.cues2.clear();
+            }
+            self.cc2_key.clear();
+            return;
+        }
+        let Some(tracks) = self.player.streams.as_ref().map(|s| s.captions.clone()).filter(|c| !c.is_empty()) else { return };
+        let key = format!("{}|{lang}", w.id);
+        if self.cc2_key == key {
+            return;
+        }
+        self.cc2_key = key.clone();
+        self.cues2.clear();
+        // translate from the track being shown when it is an original, else the first original
+        let base = self.cc_track.filter(|i| *i < tracks.len()).or_else(|| tracks.iter().position(|t| !t.auto)).unwrap_or(0);
+        let svc = translate::Service { url: self.settings.translate_url.clone(), key: self.settings.translate_key.clone() };
+        let (tx, ctx) = (self.tx.clone(), self.ctx.clone());
+        std::thread::spawn(move || {
+            let r = translate::second_cues(&tracks, base, &lang, &svc);
+            let _ = tx.send(Msg::Cues2(key, r));
+            ctx.request_repaint();
+        });
+    }
+
     /// Per-video housekeeping that depends on the resolved streams: captions, SponsorBlock.
     pub(crate) fn per_video_setup(&mut self) {
         let Some(w) = self.watching.clone() else { return };
@@ -633,14 +707,20 @@ impl App {
             self.cc_for = w.id.clone();
             self.cues.clear();
             self.cc_track = None;
-            if self.settings.captions_default {
-                let lang = self.settings.caption_lang.to_lowercase();
+            // the language chosen for this channel wins over the global one, and shows captions on its own
+            let chan_lang = self.settings.chan_prefs.get(&w.channel_id).map(|p| p.cc1.clone()).unwrap_or_default();
+            if self.settings.captions_default || !chan_lang.is_empty() {
+                let wanted = if chan_lang.is_empty() { self.settings.caption_lang.clone() } else { chan_lang };
+                let lang = wanted.to_lowercase();
                 let pick = self.player.streams.as_ref().and_then(|s| {
                     let by = |auto: bool| s.captions.iter().position(|c| c.auto == auto && c.lang.to_lowercase().starts_with(&lang));
                     by(false).or_else(|| by(true))
                 });
-                if let Some(i) = pick {
-                    self.load_cues(i);
+                match pick {
+                    Some(i) => self.load_cues(i),
+                    // the creator has not published that language: have YouTube translate the first track
+                    None if self.player.streams.as_ref().is_some_and(|s| !s.captions.is_empty()) => self.start_translated_cues(&wanted),
+                    None => {}
                 }
             }
         }

@@ -466,3 +466,76 @@ pub fn channel_more(ch: &Channel, tab: &str, token: &str) -> Res<(TabData, Optio
     };
     Ok((td, next))
 }
+
+/// Collects the channels of a "Channels" grid (a channel's public subscriptions, or the channels
+/// it features) from a page or a continuation response.
+pub(crate) fn collect_grid_channels(v: &Value, out: &mut Vec<ChannelHit>) {
+    match v {
+        Value::Object(m) => {
+            if let Some(r) = m.get("gridChannelRenderer").or_else(|| m.get("channelRenderer")) {
+                if let Some(id) = r["channelId"].as_str() {
+                    let avatar = r
+                        .pointer("/thumbnail/thumbnails")
+                        .and_then(Value::as_array)
+                        .and_then(|a| a.last())
+                        .and_then(|t| t["url"].as_str())
+                        .unwrap_or("")
+                        .to_string();
+                    let avatar = if avatar.starts_with("//") { format!("https:{avatar}") } else { avatar };
+                    let handle = r
+                        .pointer("/navigationEndpoint/browseEndpoint/canonicalBaseUrl")
+                        .and_then(Value::as_str)
+                        .unwrap_or("")
+                        .trim_start_matches('/')
+                        .to_string();
+                    out.push(ChannelHit {
+                        channel: Channel { id: id.to_string(), name: text_of(&r["title"]), avatar },
+                        handle: if handle.starts_with('@') { handle } else { String::new() },
+                        subs: text_of(&r["subscriberCountText"]),
+                    });
+                }
+            } else {
+                m.values().for_each(|c| collect_grid_channels(c, out));
+            }
+        }
+        Value::Array(a) => a.iter().for_each(|c| collect_grid_channels(c, out)),
+        _ => {}
+    }
+}
+
+/// The channels a channel page shows publicly: its subscriptions when it made them public (the
+/// "Channels" tab), otherwise the channels it features on its home page. Without signing in
+/// nothing else can be read. The channel itself is never listed.
+pub fn public_channels(ch: &Channel) -> Res<Vec<ChannelHit>> {
+    for tab in ["channels", "featured"] {
+        let Ok(html) = get_text(&format!("https://www.youtube.com/channel/{}/{tab}", ch.id)) else { continue };
+        let Ok(data) = initial_data(&html) else { continue };
+        let mut found = vec![];
+        collect_grid_channels(&data, &mut found);
+        if found.is_empty() {
+            continue;
+        }
+        // long lists continue on further pages
+        let mut token = data
+            .pointer("/contents/twoColumnBrowseResultsRenderer/tabs")
+            .and_then(Value::as_array)
+            .and_then(|tabs| tabs.iter().find(|t| t.pointer("/tabRenderer/selected") == Some(&Value::Bool(true))))
+            .and_then(|t| t.pointer("/tabRenderer/content"))
+            .and_then(last_continuation);
+        let mut pages = 0;
+        while let (Some(t), true) = (token.take(), pages < 12) {
+            pages += 1;
+            let Ok(resp) = web_post("browse", json!({ "continuation": t })) else { break };
+            let before = found.len();
+            collect_grid_channels(&resp, &mut found);
+            if found.len() == before {
+                break;
+            }
+            token = last_continuation(&resp);
+        }
+        let mut seen = std::collections::HashSet::new();
+        found.retain(|h| h.channel.id != ch.id && seen.insert(h.channel.id.clone()));
+        return Ok(found);
+    }
+    Ok(vec![])
+}

@@ -108,6 +108,7 @@ impl App {
             captions: self.settings.dl_extras,
             lyrics: self.settings.dl_extras,
             lang: self.settings.caption_lang.clone(),
+            lang2: if self.settings.cc2_on { self.cc2_language() } else { String::new() },
             transcript: vec![],
         };
         if !tr_on {

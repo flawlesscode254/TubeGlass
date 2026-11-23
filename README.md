@@ -63,6 +63,19 @@ YouTube's public pages and internal endpoints, so there is no API key to registe
 - **History with resume** — every video remembers where you stopped; *Watch later* and your own
   playlists are kept locally. **Import playlists from YouTube** by pasting their links (the download
   arrow next to *Playlists* in the sidebar); public and unlisted playlists work, private ones do not.
+- **Dual subtitles** — show a second caption language under (or over) the main one, for learning:
+  captions menu → *Second language*, or press **S** to switch it on and off. A language the creator
+  has not published is translated by YouTube, so the pair works even when a video has one track or
+  only automatic captions. Each line has its own size, colour and opacity (Settings → Captions);
+  captions wrap at 42 characters over at most two lines and stay on screen between 5/6 s and 7 s.
+  The pair is remembered per channel. Saved captions and podcast transcripts can be translated by an
+  optional LibreTranslate-compatible service you set in Settings. The second language is saved with
+  downloads so it works offline.
+- **Import from a YouTube account** — Settings → YouTube account: paste a channel link or @handle,
+  preview its public subscriptions (or featured channels) and public playlists, untick what you do
+  not want, and import. Optional **Keep in sync** adds new channels and new playlist items on refresh
+  and never deletes anything. Only what the account shows publicly can be read; there is no sign-in.
+  *Copy from a TubeGlass backup* brings over groups, caption settings and default quality.
 - **Subscriptions import / export** — NewPipe JSON, YouTube Takeout CSV, OPML or a plain list of links.
 - **"For you" ordering** *(optional)* — Home can rank videos by what you actually watch; right-click
   a video for *Not interested* or *Recommend less from this channel*.

@@ -6,6 +6,7 @@ impl App {
     /// Reloads the feed of every saved channel (and the live list), with a progress count.
     pub(crate) fn refresh_all(&mut self) {
         self.last_refresh = Instant::now();
+        self.sync_account(false);
         self.batch.clear();
         for c in self.channels.clone() {
             if self.refresh(&c) {

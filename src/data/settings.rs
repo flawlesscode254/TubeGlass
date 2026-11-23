@@ -21,6 +21,10 @@ pub(crate) struct ChanPref {
     pub(crate) speed: f32,
     /// recommend less from this channel
     pub(crate) fewer: bool,
+    /// caption language remembered for this channel ("" = use the global one)
+    pub(crate) cc1: String,
+    /// second caption language remembered for this channel ("" = use the global one)
+    pub(crate) cc2: String,
 }
 
 /// All user settings; every field has a default so old settings files keep loading.
@@ -42,6 +46,34 @@ pub(crate) struct Settings {
     pub(crate) sponsorblock: bool,
     pub(crate) captions_default: bool,
     pub(crate) caption_lang: String,
+    /// show a second caption track under (or over) the main one
+    pub(crate) cc2_on: bool,
+    /// language code of the second track
+    pub(crate) cc2_lang: String,
+    /// put the second track above the main one
+    pub(crate) cc2_swap: bool,
+    /// caption look, per line: text size factor, colour and opacity; plus the box behind the text
+    pub(crate) cc1_size: f32,
+    pub(crate) cc1_color: [u8; 3],
+    pub(crate) cc1_alpha: u8,
+    pub(crate) cc2_size: f32,
+    pub(crate) cc2_color: [u8; 3],
+    pub(crate) cc2_alpha: u8,
+    pub(crate) cc_bg: u8,
+    /// an optional LibreTranslate-compatible service for translating captions YouTube cannot
+    /// (saved captions, podcast transcripts)
+    pub(crate) translate_url: String,
+    pub(crate) translate_key: String,
+    /// the YouTube account (channel link or @handle) whose public subscriptions and playlists are kept in step
+    pub(crate) sync_source: String,
+    pub(crate) sync_on: bool,
+    /// unix time of the last sync
+    pub(crate) sync_last: u64,
+    /// what an import or sync has already considered (`ch:<id>`, `pl:<playlist>:<video>`), so
+    /// anything removed locally is not added back
+    pub(crate) sync_seen: HashSet<String>,
+    /// YouTube playlist id -> the local playlist it was imported into
+    pub(crate) imported_lists: HashMap<String, String>,
     pub(crate) dl_extras: bool,
     pub(crate) notifications: bool,
     pub(crate) accent: usize,
@@ -89,6 +121,23 @@ impl Default for Settings {
             sponsorblock: false,
             captions_default: false,
             caption_lang: "en".into(),
+            cc2_on: false,
+            cc2_lang: String::new(),
+            cc2_swap: false,
+            cc1_size: 1.0,
+            cc1_color: [255, 255, 255],
+            cc1_alpha: 255,
+            cc2_size: 0.85,
+            cc2_color: [255, 224, 140],
+            cc2_alpha: 255,
+            cc_bg: 185,
+            translate_url: String::new(),
+            translate_key: String::new(),
+            sync_source: String::new(),
+            sync_on: false,
+            sync_last: 0,
+            sync_seen: HashSet::new(),
+            imported_lists: HashMap::new(),
             dl_extras: true,
             notifications: false,
             accent: 0,

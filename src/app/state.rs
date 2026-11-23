@@ -66,6 +66,9 @@ pub(crate) struct App {
     pub(crate) cues: Vec<yt::Cue>,
     pub(crate) cc_track: Option<usize>,
     pub(crate) cc_for: String,
+    /// the second caption track, and which (video, language) it was loaded for
+    pub(crate) cues2: Vec<yt::Cue>,
+    pub(crate) cc2_key: String,
     pub(crate) sponsor: Vec<yt::SkipSeg>,
     pub(crate) sponsor_for: String,
     pub(crate) last_skip: Option<usize>,
@@ -135,6 +138,11 @@ pub(crate) struct App {
     pub(crate) new_list: Option<(String, Option<Video>)>,
     /// The "Import from YouTube" dialog: the pasted links, and how many playlists are still loading.
     pub(crate) import_list: Option<(String, usize)>,
+    /// The account import and backup-copy pop-ups, and a sync in progress with its last result.
+    pub(crate) acct: Option<AcctDialog>,
+    pub(crate) profile: Option<ProfileDialog>,
+    pub(crate) syncing: bool,
+    pub(crate) sync_note: String,
     /// Sort order, date range and length limit chosen above a channel's or playlist's videos.
     pub(crate) list_sort: u8,
     pub(crate) list_date: u8,

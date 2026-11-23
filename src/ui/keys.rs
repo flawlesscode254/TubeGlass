@@ -63,6 +63,18 @@ impl App {
             }
         }
         if pressed(C) { self.toggle_comments(); }
+        if pressed(S) {
+            if self.settings.cc2_on {
+                self.settings.cc2_on = false;
+                self.toast("Second captions off");
+            } else if self.cc2_language().is_empty() {
+                self.toast("Pick a second language in the captions menu first");
+            } else {
+                self.settings.cc2_on = true;
+                self.toast("Second captions on");
+            }
+            self.save_settings();
+        }
         if pressed(OpenBracket) {
             let v = (self.player.speed - 0.25).max(0.5);
             self.player.set_speed(v);

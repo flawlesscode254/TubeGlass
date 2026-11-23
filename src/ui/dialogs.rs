@@ -146,6 +146,7 @@ impl App {
                         ("B", "Ambient mode on or off"),
                         ("W", "Watch later on or off"),
                         ("C", "Comments"),
+                        ("S", "Second captions on or off"),
                         ("Y", "Lyrics (music)"),
                         ("F", "Fullscreen"),
                         ("Esc", "Back (keeps playing in PiP)"),

@@ -90,6 +90,8 @@ pub struct Extras {
     pub captions: bool,
     pub lyrics: bool,
     pub lang: String,
+    /// the second caption language (empty = none), saved translated so it works offline
+    pub lang2: String,
     /// a podcast episode's transcript, saved so it reads without a connection
     pub transcript: Vec<Cue>,
 }
@@ -115,6 +117,20 @@ fn save_extras(stem: &str, d: &std::path::Path, v_title: &str, channel: &str, st
             if let Ok(cues) = crate::yt::caption_cues(&url) {
                 let sc = SavedCaption { lang: ex.lang.clone(), name: format!("{} (translated)", ex.lang), auto: true, cues };
                 let _ = std::fs::write(d.join(format!("{stem}.cc9.cues")), serde_json::to_vec(&sc).unwrap_or_default());
+            }
+        }
+        // the second language, saved translated when the video has no track in it
+        let lang2 = ex.lang2.to_lowercase();
+        if !lang2.is_empty() && lang2 != lang {
+            let have = streams.captions.iter().any(|c| c.lang.to_lowercase().starts_with(&lang2.split('-').next().unwrap_or("").to_string()));
+            let svc = crate::translate::Service::default();
+            let base = streams.captions.iter().position(|c| !c.auto).unwrap_or(0);
+            if !streams.captions.is_empty() {
+                if let Ok(cues) = crate::translate::second_cues(&streams.captions, base, &ex.lang2, &svc) {
+                    let name = if have { format!("{} (second language)", ex.lang2) } else { format!("{} (translated)", ex.lang2) };
+                    let sc = SavedCaption { lang: ex.lang2.clone(), name, auto: !have, cues };
+                    let _ = std::fs::write(d.join(format!("{stem}.cc8.cues")), serde_json::to_vec(&sc).unwrap_or_default());
+                }
             }
         }
         for (i, tr) in picks.into_iter().enumerate() {
@@ -582,7 +598,7 @@ mod tests {
         let _ = std::fs::remove_dir_all(&tmp);
         set_dir(Some(tmp.clone()));
         let no = AtomicBool::new(false);
-        let ex = Extras { captions: true, lyrics: true, lang: "en".into(), transcript: vec![] };
+        let ex = Extras { captions: true, lyrics: true, lang: "en".into(), lang2: "fr".into(), transcript: vec![] };
         let st = crate::yt::streams("jNQXAC9IVRw").expect("streams");
         let v = run("jNQXAC9IVRw", "Me at the zoo", "jawed", "", &st, 144, &no, &no, false, false, "", &ex, &|_, _| {}).expect("video");
         let caps = offline_captions(&v);
